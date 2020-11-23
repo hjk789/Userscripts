@@ -13,6 +13,7 @@ This userscript enables you to change the speed of video and audio with the Prin
 - ScrollLock: Sets to 2.5x speed
 - Ctrl + ScrollLock: Sets to 4x speed
 - Ctrl + Insert: Sets to 16x speed
+- Shift + ScrollLock: Sets to normal speed (1x)
 
 You can freely change the keys or the speeds as you like. These are the ones that works best for me.
 
