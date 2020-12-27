@@ -11,11 +11,18 @@
 // @grant           GM.getValue
 // ==/UserScript==
 
+//**********************
+
+const maxRepetitions = 2    // The maximum number of times that the same recommended video is allowed to appear on your homepage before starting to get hidden.
+
+//**********************
+
+
 const recommendationsContainer = document.querySelector(".rich-grid-renderer-contents")
 
 const firstVideos = recommendationsContainer.querySelectorAll("ytm-rich-item-renderer")
 
-for (let i=0; i<firstVideos.length; i++)
+for (let i=0; i < firstVideos.length; i++)
     processRecommendation(firstVideos[i])
 
 
@@ -40,7 +47,7 @@ async function processRecommendation(node)
         value = 1
     else
     {
-        if (value >= 1)
+        if (value >= maxRepetitions)
             node.style.display = "none"
 
         value++
