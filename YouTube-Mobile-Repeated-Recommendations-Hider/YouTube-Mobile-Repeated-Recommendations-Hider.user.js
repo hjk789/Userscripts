@@ -1,46 +1,50 @@
 // ==UserScript==
 // @name            YouTube Mobile Repeated Recommendations Hider
 // @description     Hides any videos that are recommended more than 2 times at the mobile homepage
-// @version         1.2
+// @version         1.3
 // @author          BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
 // @copyright       2020+, BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
-// @homepage        https://github.com/hjk789/Creations/tree/master/Userscripts/YouTube-Mobile-Repeated-Recommendations-Hider
-// @license         https://github.com/hjk789/Creations/tree/master/Userscripts/YouTube-Mobile-Repeated-Recommendations-Hider#license
+// @homepage        https://github.com/hjk789/Creations/tree/master/JavaScript/Userscripts/YouTube-Mobile-Repeated-Recommendations-Hider
+// @license         https://github.com/hjk789/Creations/tree/master/JavaScript/Userscripts/YouTube-Mobile-Repeated-Recommendations-Hider#license
 // @match           https://m.youtube.com
 // @grant           GM.setValue
 // @grant           GM.getValue
 // ==/UserScript==
 
-main()
+const recommendationsContainer = document.querySelector(".rich-grid-renderer-contents")
 
-async function main()
+const firstVideos = recommendationsContainer.querySelectorAll("ytm-rich-item-renderer")
+
+for (let i=0; i<firstVideos.length; i++)
+    processRecommendation(firstVideos[i])
+
+
+const loadedRecommendedVideosObserver = new MutationObserver(function(mutations) {
+	mutations.forEach(function(mutation) {
+		processRecommendation(mutation.addedNodes[0])
+	})
+})
+
+loadedRecommendedVideosObserver.observe(recommendationsContainer, {childList: true})
+
+
+async function processRecommendation(node)
 {
-    let titlesList = document.getElementsByClassName("large-media-item-metadata")
+    if (!node) return
+    
+    const videoTitleText = node.querySelector("h3").textContent
 
-    while (titlesList.length > 0)
+    let value = await GM.getValue(videoTitleText)
+
+    if (typeof value == "undefined")
+        value = 1
+    else
     {
-        let videoTitle = titlesList[0].firstChild.firstChild
-        let videoTitleText = videoTitle.textContent
+        if (value >= 1)
+            node.style.display = "none"
 
-        let value = await GM.getValue(videoTitleText)
-
-        if (typeof value == "undefined")
-            value = 1
-        else
-        {
-            if (value >= 2)
-            {
-                let videoItem = videoTitle.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement.parentElement
-                videoItem.style.display = "none"
-            }
-
-            value++
-        }
-
-        titlesList[0].className = ""
-
-        GM.setValue(videoTitleText, value)
+        value++
     }
 
-    setTimeout(() => main(), 500)
+    GM.setValue(videoTitleText, value)
 }
