@@ -1,10 +1,10 @@
 # Media Speed Changer
 
-Enables you to change the speed of video and audio with hotkeys (even if the video is inside an iframe)
+Enables you to change the speed of video and audio with hotkeys (even if the media is inside an iframe)
 
 ## About
 
-This userscript enables you to change the speed of video and audio with the PrintScreen, ScrollLock and Pause keys. It does this both for media in the page (HTML5 video or audio) or embeded media inside an IFRAME element. It was tested in both GreaseMonkey and TamperMonkey, although in GreaseMonkey some embeds won't change the speed, because of a bug in GreaseMonkey 4's IFRAME handling. So it works best on TamperMonkey.
+This userscript enables you to change the speed of video and audio with the PrintScreen, ScrollLock and Pause keys. It does this both for media in the page (HTML5 video or audio) or embeded media inside an IFRAME element. It was tested in both GreaseMonkey and TamperMonkey, although in GreaseMonkey some embeds won't change the speed, because of a bug in GreaseMonkey 4's IFRAME handling. So it works best on Tampermonkey or Violentmonkey.
 
 ### Hotkeys
 
