@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name            YouTube Mobile Repeated Recommendations Hider
 // @description     Hides any videos that are recommended more than 2 times at the mobile homepage
-// @version         1.3
+// @version         1.5
 // @author          BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
 // @copyright       2020+, BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
 // @homepage        https://github.com/hjk789/Creations/tree/master/JavaScript/Userscripts/YouTube-Mobile-Repeated-Recommendations-Hider
@@ -9,49 +9,77 @@
 // @match           https://m.youtube.com
 // @grant           GM.setValue
 // @grant           GM.getValue
+// @grant           GM.listValues
+// @grant           GM.deleteValue
 // ==/UserScript==
 
 //**********************
 
-const maxRepetitions = 2    // The maximum number of times that the same recommended video is allowed to appear on your homepage before starting to get hidden.
-
+const maxRepetitions = 2    // The maximum number of times that the same recommended video is
+                            // allowed to appear on your homepage before starting to get hidden. 
 //**********************
 
+let processedVideosList
 
-const recommendationsContainer = document.querySelector(".rich-grid-renderer-contents")
+GM.listValues().then(function(GmList) 
+{
+    processedVideosList = GmList
 
-const firstVideos = recommendationsContainer.querySelectorAll("ytm-rich-item-renderer")
+    const recommendationsContainer = document.querySelector(".rich-grid-renderer-contents")
 
-for (let i=0; i < firstVideos.length; i++)
-    processRecommendation(firstVideos[i])
+    const firstVideos = recommendationsContainer.querySelectorAll("ytm-rich-item-renderer")
+
+    for (let i=0; i < firstVideos.length; i++)
+        processRecommendation(firstVideos[i])
 
 
-const loadedRecommendedVideosObserver = new MutationObserver(function(mutations) {
-	mutations.forEach(function(mutation) {
-		processRecommendation(mutation.addedNodes[0])
-	})
+    const loadedRecommendedVideosObserver = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+            processRecommendation(mutation.addedNodes[0])
+        })
+    })
+
+    loadedRecommendedVideosObserver.observe(recommendationsContainer, {childList: true})
 })
-
-loadedRecommendedVideosObserver.observe(recommendationsContainer, {childList: true})
-
 
 async function processRecommendation(node)
 {
     if (!node) return
     
-    const videoTitleText = node.querySelector("h3").textContent
-
-    let value = await GM.getValue(videoTitleText)
-
-    if (typeof value == "undefined")
-        value = 1
+    const videoTitleEll = node.querySelector("h3")
+    const videoTitleText = videoTitleEll.textContent
+    const videoUrl = videoTitleEll.parentElement.href
+    let value
+    
+    if (processedVideosList.includes("hide::"+videoUrl) || processedVideosList.includes("hide::"+videoTitleText))
+        node.style.display = "none"
     else
     {
-        if (value >= maxRepetitions)
-            node.style.display = "none"
+        if (maxRepetitions > 1)
+            value = await GM.getValue(videoUrl)
+        else
+        {
+            GM.setValue("hide::"+videoUrl,"")
+            return
+        }
+        
+        if (typeof value == "undefined")
+            value = 1
+        else
+        {
+            if (value >= maxRepetitions)
+            {
+                node.style.display = "none"
 
-        value++
+                GM.deleteValue(videoUrl)
+                GM.setValue("hide::"+videoUrl,"")
+                return
+            }
+
+            value++
+        }
+        
+        GM.setValue(videoUrl, value)
     }
-
-    GM.setValue(videoTitleText, value)
+    
 }
