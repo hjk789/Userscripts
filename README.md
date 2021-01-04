@@ -1,4 +1,4 @@
-## [Media Speed Changer](https://github.com/hjk789/Creations/tree/master/Userscripts/Media-Speed-Changer)
+## [Media Speed Changer](https://github.com/hjk789/Creations/tree/master/JavaScript/Userscripts/Media-Speed-Changer)
 
 Enables you to change the speed of video and audio with hotkeys (even if the video is inside an iframe). [Read more](https://github.com/hjk789/Creations/tree/master/JavaScript/Userscripts/Media-Speed-Changer)
 
