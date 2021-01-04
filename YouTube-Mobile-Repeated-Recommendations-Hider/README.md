@@ -1,6 +1,6 @@
 # YouTube Mobile Repeated Recommendations Hider
 
-Hide any videos that are recommended more than twice at the mobile homepage.
+Hide from YouTube's mobile browser homepage any videos that are recommended more than twice.
 
 ## About
 
