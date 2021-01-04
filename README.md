@@ -10,7 +10,7 @@ Adds vertical bars to the left of the comments, enabling you to easily collapse 
 
 [Install link](https://greasyfork.org/scripts/409640-collapse-hackernews-parent-comments/code/Collapse%20HackerNews%20Parent%20Comments.user.js)
 
-## YouTube Mobile Repeated Recommendations Hider
+## [YouTube Mobile Repeated Recommendations Hider](https://github.com/hjk789/Creations/tree/master/JavaScript/Userscripts/YouTube-Mobile-Repeated-Recommendations-Hider)
 
 Hide from YouTube's mobile browser homepage any videos that are recommended more than twice. [Read more](https://github.com/hjk789/Creations/tree/master/JavaScript/Userscripts/YouTube-Mobile-Repeated-Recommendations-Hider)
 
