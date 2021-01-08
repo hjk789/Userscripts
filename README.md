@@ -12,6 +12,6 @@ Adds vertical bars to the left of the comments, enabling you to easily collapse 
 
 ## [YouTube Mobile Repeated Recommendations Hider](https://github.com/hjk789/Creations/tree/master/JavaScript/Userscripts/YouTube-Mobile-Repeated-Recommendations-Hider)
 
-Hide from YouTube's mobile browser homepage any videos that are recommended more than twice. [Read more](https://github.com/hjk789/Creations/tree/master/JavaScript/Userscripts/YouTube-Mobile-Repeated-Recommendations-Hider)
+Hide from YouTube's mobile browser homepage any videos that are recommended more than twice. You can also hide by channel or by partial title. [Read more](https://github.com/hjk789/Creations/tree/master/JavaScript/Userscripts/YouTube-Mobile-Repeated-Recommendations-Hider)
 
 [Install link](https://greasyfork.org/scripts/419666-youtube-mobile-repeated-recommendations-hider/code/YouTube%20Mobile%20Repeated%20Recommendations%20Hider.user.js)
