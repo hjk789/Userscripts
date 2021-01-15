@@ -124,8 +124,8 @@ async function processRecommendation(node)
     }
 
     if (processedVideosList.includes("hide::"+videoUrl) || channelsToHide.includes(videoChannel) || partialTitlesToHide.some(p => videoTitleText.includes(p)))
-        node.style.display = "none"
-    else
+        node.style.display = "none"             // The node is having its display set to none, instead of being removed, because after loading the recommendations, YouTube checks whether it is 
+    else                                        // present in the page, and if not, it loads this one recommendation again, again and again, until it persists on the page, causing several glitches.
     {
         if (maxRepetitions == 1)                // If the script is set to show only one-time recommendations, to avoid unnecessary processings,
         {                                       // rightaway mark to hide in the next time the page is loaded every video not found in the storage.
