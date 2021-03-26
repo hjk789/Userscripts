@@ -1,12 +1,13 @@
 // ==UserScript==
 // @name            YouTube Mobile Repeated Recommendations Hider
 // @description     Hide from YouTube's mobile browser homepage any videos that are recommended more than twice. You can also hide by channel or by partial title.
-// @version         1.8
+// @version         1.9
 // @author          BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
 // @copyright       2020+, BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
 // @homepage        https://github.com/hjk789/Creations/tree/master/JavaScript/Userscripts/YouTube-Mobile-Repeated-Recommendations-Hider
 // @license         https://github.com/hjk789/Creations/tree/master/JavaScript/Userscripts/YouTube-Mobile-Repeated-Recommendations-Hider#license
 // @match           https://m.youtube.com
+// @match           https://m.youtube.com/?*
 // @grant           GM.setValue
 // @grant           GM.getValue
 // @grant           GM.listValues
@@ -17,6 +18,9 @@
 
 const maxRepetitions = 2    // The maximum number of times that the same recommended video is allowed to appear on your
                             // homepage before starting to get hidden. Set this to 1 if you want one-time recommendations.
+
+const hidePremiere = false  // Whether to hide repeated videos yet to be premiered. If set to false, the recommendation won't get "remembered" until the
+                            // video is finally released, then it will start counting as any other video. Set this to true if you want to hide them anyway.
 //*************************
 
 let channelsToHide, partialTitlesToHide
@@ -74,7 +78,8 @@ async function processRecommendation(node)
     const videoChannel = videoTitleEll.nextSibling.firstChild.firstChild.textContent
     const videoUrl = videoTitleEll.parentElement.href
     const videoMenuBtn = node.querySelector("ytm-menu")
-
+    const isNotPremiere = /\d/.test(node.querySelector("ytm-thumbnail-overlay-time-status-renderer").textContent)        // Check whether the video is still to be premiered. The same element that shows the video time
+                                                                                                                         // length is the one that says "PREMIERE", so if there's a digit in there, then it's not a premiere.
     if (videoMenuBtn)
     {
         videoMenuBtn.onclick = function()
@@ -124,13 +129,16 @@ async function processRecommendation(node)
     }
 
     if (processedVideosList.includes("hide::"+videoUrl) || channelsToHide.includes(videoChannel) || partialTitlesToHide.some(p => videoTitleText.includes(p)))
-        node.style.display = "none"             // The node is having its display set to none, instead of being removed, because after loading the recommendations, YouTube checks whether it is 
-    else                                        // present in the page, and if not, it loads this one recommendation again, again and again, until it persists on the page, causing several glitches.
+        node.style.display = "none"
+    else
     {
         if (maxRepetitions == 1)                // If the script is set to show only one-time recommendations, to avoid unnecessary processings,
         {                                       // rightaway mark to hide in the next time the page is loaded every video not found in the storage.
-            GM.setValue("hide::"+videoUrl,"")
-            return
+            if (isNotPremiere || hidePremiere)
+            {
+                GM.setValue("hide::"+videoUrl,"")
+                return
+            }
         }
         else
             var value = await GM.getValue(videoUrl)
@@ -151,7 +159,8 @@ async function processRecommendation(node)
             value++
         }
 
-        GM.setValue(videoUrl, value)
+        if (isNotPremiere || hidePremiere)
+            GM.setValue(videoUrl, value)
     }
 
 }
