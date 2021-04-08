@@ -10,6 +10,8 @@ This userscript enables you to change the speed of video and audio with the Prin
 
 - PrintScreen: 0.25x slower
 - Pause/Break: 0.25x faster
+- Shift + PrintScreen: 0.5x slower
+- Shift + Pause/Break: 0.5x faster
 - ScrollLock: Sets to 2.5x speed
 - Ctrl + ScrollLock: Sets to 4x speed
 - Ctrl + Insert: Sets to 16x speed
@@ -19,7 +21,7 @@ You can freely change the keys or the speeds as you like. These are the ones tha
 
 ## License
 
-- You can view the code, download copies and run this software as is.
-- You can link to this userscript's repository homepage (https://github.com/hjk789/Creations/tree/master/JavaScript/Userscripts/Media-Speed-Changer) or to it's GreasyFork page (https://greasyfork.org/scripts/409500-media-speed-changer). 
+- You can view the code, download copies to your devices, install, run, use the features and uninstall this software.
+- Feel free to refer to this userscript, just make sure to include a link to its [repository homepage](https://github.com/hjk789/Creations/tree/master/JavaScript/Userscripts/Media-Speed-Changer) or to its [GreasyFork page](https://greasyfork.org/scripts/409500-media-speed-changer). 
 - You can modify your copy as you like.
 - You cannot do any other action not allowed in this license.  
