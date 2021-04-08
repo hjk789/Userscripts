@@ -3,7 +3,7 @@
 // @description     Enables you to change the speed of video and audio with hotkeys (even if the video is inside an iframe)
 // @author          BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
 // @copyright       2020+, BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
-// @version         1.0
+// @version         1.1
 // @homepage        https://github.com/hjk789/Creations/tree/master/Userscripts/Media-Speed-Changer
 // @license         https://github.com/hjk789/Creations/tree/master/Userscripts/Media-Speed-Changer#license
 // @grant           none
@@ -13,12 +13,14 @@
 
 document.onkeyup = function(e)
 {
-    if      (e.key == "Pause")                    changeSpeed(0.25,  "relative")
-    else if (e.key == "PrintScreen")              changeSpeed(-0.25, "relative")
-    else if (e.shiftKey && e.key == "ScrollLock") changeSpeed(1)
-    else if (e.key == "ScrollLock")               changeSpeed(2.5)
-    else if (e.ctrlKey && e.key == "Cancel")      changeSpeed(4)  // Ctrl + ScrollLock/Pause = Cancel
-    else if (e.ctrlKey && e.key == "Insert")      changeSpeed(16)
+    if      (e.shiftKey && e.key == "Pause")       changeSpeed(0.5,  "relative")
+    else if (e.shiftKey && e.key == "PrintScreen") changeSpeed(-0.5, "relative")
+    else if (e.key == "Pause")                     changeSpeed(0.25,  "relative")
+    else if (e.key == "PrintScreen")               changeSpeed(-0.25, "relative")
+    else if (e.shiftKey && e.key == "ScrollLock")  changeSpeed(1)
+    else if (e.key == "ScrollLock")                changeSpeed(2.5)
+    else if (e.ctrlKey && e.key == "Cancel")       changeSpeed(4)  // Ctrl + ScrollLock/Pause = Cancel
+    else if (e.ctrlKey && e.key == "Insert")       changeSpeed(16)
 }
 
 function changeSpeed(value, mode = "absolute")
