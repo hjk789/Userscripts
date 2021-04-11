@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name            YouTube Mobile Repeated Recommendations Hider
-// @description     Hide from YouTube's mobile browser homepage any videos that are recommended more than twice. You can also hide by channel or by partial title.
+// @description     Hide from YouTube's mobile browser any videos that are recommended more than twice. You can also hide by channel or by partial title.
 // @version         1.11
 // @author          BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
 // @copyright       2020+, BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
