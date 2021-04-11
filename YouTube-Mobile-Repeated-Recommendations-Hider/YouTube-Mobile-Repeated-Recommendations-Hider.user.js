@@ -1,27 +1,39 @@
 // ==UserScript==
 // @name            YouTube Mobile Repeated Recommendations Hider
 // @description     Hide from YouTube's mobile browser homepage any videos that are recommended more than twice. You can also hide by channel or by partial title.
-// @version         1.9
+// @version         1.11
 // @author          BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
 // @copyright       2020+, BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
 // @homepage        https://github.com/hjk789/Creations/tree/master/JavaScript/Userscripts/YouTube-Mobile-Repeated-Recommendations-Hider
 // @license         https://github.com/hjk789/Creations/tree/master/JavaScript/Userscripts/YouTube-Mobile-Repeated-Recommendations-Hider#license
 // @match           https://m.youtube.com
 // @match           https://m.youtube.com/?*
+// @match           https://m.youtube.com/watch?v=*
 // @grant           GM.setValue
 // @grant           GM.getValue
 // @grant           GM.listValues
 // @grant           GM.deleteValue
 // ==/UserScript==
 
+
 //******* SETTINGS ********
 
-const maxRepetitions = 2    // The maximum number of times that the same recommended video is allowed to appear on your
-                            // homepage before starting to get hidden. Set this to 1 if you want one-time recommendations.
+const maxRepetitions = 2      // The maximum number of times that the same recommended video is allowed to appear on your
+                              // homepage before starting to get hidden. Set this to 1 if you want one-time recommendations.
 
-const hidePremiere = false  // Whether to hide repeated videos yet to be premiered. If set to false, the recommendation won't get "remembered" until the
-                            // video is finally released, then it will start counting as any other video. Set this to true if you want to hide them anyway.
+const filterPremiere = false  // Whether to include in the filtering repeated videos yet to be premiered. If set to false, the recommendation won't get "remembered"
+                              // until the video is finally released, then it will start counting as any other video. Set this to true if you want to hide them anyway.
+
+const filterRelated = true    // Whether the related videos (the ones below the video you are watching) should also be filtered. Set this to false if you want to keep them untouched.
+
+const countRelated = false    // When false, new related videos are ignored in the countings and are allowed to appear any number of times, as long as they don't appear in the
+                              // homepage recommendations. If set to true, the related videos are counted even if they never appeared in the homepage recommendations.
+
+const dimFilteredHomepage = false  // Whether the repeated recommendations in the homepage should get dimmed (partially faded) instead of completely hidden.
+const dimFilteredRelated = true    // Same thing, but for the related videos.
+
 //*************************
+
 
 let channelsToHide, partialTitlesToHide
 let processedVideosList
@@ -50,26 +62,40 @@ GM.getValue("channels").then(function(value)
         {                                                                                              // an array is much faster and lighter than calling GM.getValue for every recommendation.
             processedVideosList = GmList
 
-            const recommendationsContainer = document.querySelector(".rich-grid-renderer-contents")
+            const isHomepage = !/watch/.test(location.href)
 
-            const firstVideos = recommendationsContainer.querySelectorAll("ytm-rich-item-renderer")    // Because a mutation observer is being used and the script is run after the page is fully
-                                                                                                       // loaded, the observer isn't triggered with the recommendations that appear first.
-            for (let i=0; i < firstVideos.length; i++)                                                 // This does the processing manually to these first ones.
-                processRecommendation(firstVideos[i])
+            if (isHomepage)
+            {
+                const recommendationsContainer = document.querySelector(".rich-grid-renderer-contents")
 
+                const firstVideos = recommendationsContainer.querySelectorAll("ytm-rich-item-renderer")    // Because a mutation observer is being used and the script is run after the page is fully
+                                                                                                           // loaded, the observer isn't triggered with the recommendations that appear first.
+                for (let i=0; i < firstVideos.length; i++)                                                 // This does the processing manually to these first ones.
+                    processRecommendation(firstVideos[i], isHomepage)
 
-            const loadedRecommendedVideosObserver = new MutationObserver(function(mutations)           // A mutation observer is being used so that all processings happen only
-            {                                                                                          // when actually needed, which is when more recommendations are loaded.
-                for (let i=0; i < mutations.length; i++)
-                    processRecommendation(mutations[i].addedNodes[0])
-            })
+                const loadedRecommendedVideosObserver = new MutationObserver(function(mutations)           // A mutation observer is being used so that all processings happen only
+                {                                                                                          // when actually needed, which is when more recommendations are loaded.
+                    for (let i=0; i < mutations.length; i++)
+                        processRecommendation(mutations[i].addedNodes[0], isHomepage)
+                })
 
-            loadedRecommendedVideosObserver.observe(recommendationsContainer, {childList: true})
+                loadedRecommendedVideosObserver.observe(recommendationsContainer, {childList: true})
+            }
+            else
+            {
+                const relatedVideos = document.querySelectorAll("ytm-video-with-context-renderer")
+
+                for (let i=0; i < relatedVideos.length; i++)
+                    processRecommendation(relatedVideos[i], isHomepage)
+            }
+
         })
     })
 })
 
-async function processRecommendation(node)
+
+
+async function processRecommendation(node, isHomepage)
 {
     if (!node) return
 
@@ -78,8 +104,9 @@ async function processRecommendation(node)
     const videoChannel = videoTitleEll.nextSibling.firstChild.firstChild.textContent
     const videoUrl = videoTitleEll.parentElement.href
     const videoMenuBtn = node.querySelector("ytm-menu")
-    const isNotPremiere = /\d/.test(node.querySelector("ytm-thumbnail-overlay-time-status-renderer").textContent)        // Check whether the video is still to be premiered. The same element that shows the video time
-                                                                                                                         // length is the one that says "PREMIERE", so if there's a digit in there, then it's not a premiere.
+    const timeLabelEll = node.querySelector("ytm-thumbnail-overlay-time-status-renderer")
+    const isNotPremiere = timeLabelEll ? /\d/.test(timeLabelEll.textContent) : true        // Check whether the video is still to be premiered. The same element that shows the video time
+                                                                                           // length is the one that says "PREMIERE", so if there's a digit in there, then it's not a premiere.
     if (videoMenuBtn)
     {
         videoMenuBtn.onclick = function()
@@ -93,6 +120,7 @@ async function processRecommendation(node)
                     clearInterval(waitForMenu)
 
                     const hideChannelButton = document.createElement("button")
+                    hideChannelButton.id = "hideChannelButton"
                     hideChannelButton.className = "menu-item-button"
                     hideChannelButton.innerText = "Hide videos from this channel"
                     hideChannelButton.onclick = function()
@@ -105,6 +133,7 @@ async function processRecommendation(node)
                     }
 
                     const hidePartialTitleButton = document.createElement("button")
+                    hidePartialTitleButton.id = "hidePartialTitleButton"
                     hidePartialTitleButton.className = "menu-item-button"
                     hidePartialTitleButton.innerText = "Hide videos that include a text"
                     hidePartialTitleButton.onclick = function()
@@ -118,8 +147,12 @@ async function processRecommendation(node)
                         }
                     }
 
-                    menu.firstChild.appendChild(hideChannelButton)
-                    menu.firstChild.appendChild(hidePartialTitleButton)
+
+                    if (!document.getElementById("hideChannelButton") && !document.getElementById("hidePartialTitleButton"))
+                    {
+                        menu.firstChild.appendChild(hideChannelButton)
+                        menu.firstChild.appendChild(hidePartialTitleButton)
+                    }
 
 
                 }
@@ -129,37 +162,63 @@ async function processRecommendation(node)
     }
 
     if (processedVideosList.includes("hide::"+videoUrl) || channelsToHide.includes(videoChannel) || partialTitlesToHide.some(p => videoTitleText.includes(p)))
-        node.style.display = "none"
+    {
+        if (!isHomepage && !filterRelated)
+            return
+
+        if (isHomepage && dimFilteredHomepage || !isHomepage && dimFilteredRelated)
+            node.style.opacity = 0.3
+        else
+            node.style.display = "none"
+    }
     else
     {
         if (maxRepetitions == 1)                // If the script is set to show only one-time recommendations, to avoid unnecessary processings,
-        {                                       // rightaway mark to hide in the next time the page is loaded every video not found in the storage.
-            if (isNotPremiere || hidePremiere)
+        {                                       // rightaway mark to hide, in the next time the page is loaded, every video not found in the storage.
+            if (!isHomepage && !countRelated)
+                return
+
+            if (isNotPremiere || filterPremiere)
             {
                 GM.setValue("hide::"+videoUrl,"")
                 return
             }
+
         }
         else
             var value = await GM.getValue(videoUrl)
 
         if (typeof value == "undefined")
+        {
+            if (!isHomepage && !countRelated)
+                return
+
             value = 1
+        }
         else
         {
             if (value >= maxRepetitions)
             {
-                node.style.display = "none"
+                if (!isHomepage && !filterRelated)
+                    return
+
+                if (isHomepage && dimFilteredHomepage || !isHomepage && dimFilteredRelated)
+                    node.style.opacity = 0.3
+                else
+                    node.style.display = "none"
 
                 GM.deleteValue(videoUrl)
                 GM.setValue("hide::"+videoUrl,"")
                 return
             }
 
+            if (!isHomepage && !countRelated)
+                return
+
             value++
         }
 
-        if (isNotPremiere || hidePremiere)
+        if (isNotPremiere || filterPremiere)
             GM.setValue(videoUrl, value)
     }
 
