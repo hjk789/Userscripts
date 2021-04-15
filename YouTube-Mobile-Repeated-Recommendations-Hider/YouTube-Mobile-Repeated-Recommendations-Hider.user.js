@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name            YouTube Mobile Repeated Recommendations Hider
 // @description     Hide from YouTube's mobile browser any videos that are recommended more than twice. You can also hide by channel or by partial title.
-// @version         1.11
+// @version         1.11.3
 // @author          BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
 // @copyright       2020+, BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
 // @homepage        https://github.com/hjk789/Creations/tree/master/JavaScript/Userscripts/YouTube-Mobile-Repeated-Recommendations-Hider
@@ -27,7 +27,7 @@ const filterPremiere = false  // Whether to include in the filtering repeated vi
 const filterRelated = true    // Whether the related videos (the ones below the video you are watching) should also be filtered. Set this to false if you want to keep them untouched.
 
 const countRelated = false    // When false, new related videos are ignored in the countings and are allowed to appear any number of times, as long as they don't appear in the
-                              // homepage recommendations. If set to true, the related videos are counted even if they never appeared in the homepage recommendations.
+                              // homepage recommendations. If set to true, the related videos are counted even if they never appeared in the homepage.
 
 const dimFilteredHomepage = false  // Whether the repeated recommendations in the homepage should get dimmed (partially faded) instead of completely hidden.
 const dimFilteredRelated = true    // Same thing, but for the related videos.
@@ -83,10 +83,20 @@ GM.getValue("channels").then(function(value)
             }
             else
             {
-                const relatedVideos = document.querySelectorAll("ytm-video-with-context-renderer")
+                waitForAllRelated = setInterval(function()
+                {
+                    const relatedVideos = document.querySelectorAll("ytm-video-with-context-renderer")
 
-                for (let i=0; i < relatedVideos.length; i++)
-                    processRecommendation(relatedVideos[i], isHomepage)
+                    if (relatedVideos.length < 12)
+                        return
+
+                    clearInterval(waitForAllRelated)
+
+                    for (let i=0; i < relatedVideos.length; i++)
+                        processRecommendation(relatedVideos[i], isHomepage)
+
+                }, 500)
+                
             }
 
         })
@@ -161,16 +171,17 @@ async function processRecommendation(node, isHomepage)
         }
     }
 
-    if (processedVideosList.includes("hide::"+videoUrl) || channelsToHide.includes(videoChannel) || partialTitlesToHide.some(p => videoTitleText.includes(p)))
+    if (channelsToHide.includes(videoChannel) || partialTitlesToHide.some(p => videoTitleText.includes(p)))
+    {
+        node.style.display = "none"
+    }
+    else if (processedVideosList.includes("hide::"+videoUrl))
     {
         if (!isHomepage && !filterRelated)
             return
 
-        if (isHomepage && dimFilteredHomepage || !isHomepage && dimFilteredRelated)
-            node.style.opacity = 0.3
-        else
-            node.style.display = "none"
-    }
+        hideOrDimm(node, isHomepage)
+    } 
     else
     {
         if (maxRepetitions == 1)                // If the script is set to show only one-time recommendations, to avoid unnecessary processings,
@@ -202,10 +213,7 @@ async function processRecommendation(node, isHomepage)
                 if (!isHomepage && !filterRelated)
                     return
 
-                if (isHomepage && dimFilteredHomepage || !isHomepage && dimFilteredRelated)
-                    node.style.opacity = 0.3
-                else
-                    node.style.display = "none"
+                hideOrDimm(node, isHomepage)
 
                 GM.deleteValue(videoUrl)
                 GM.setValue("hide::"+videoUrl,"")
@@ -222,4 +230,13 @@ async function processRecommendation(node, isHomepage)
             GM.setValue(videoUrl, value)
     }
 
+}
+
+
+function hideOrDimm(node, isHomepage)
+{
+    if (isHomepage && dimFilteredHomepage || !isHomepage && dimFilteredRelated)
+        node.style.opacity = 0.4
+    else
+        node.style.display = "none"
 }
