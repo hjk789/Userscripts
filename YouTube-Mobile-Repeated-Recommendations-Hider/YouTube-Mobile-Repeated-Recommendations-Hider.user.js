@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name            YouTube Mobile Repeated Recommendations Hider
 // @description     Hide from YouTube's mobile browser any videos that are recommended more than twice. You can also hide by channel or by partial title.
-// @version         1.11.3
+// @version         1.12
 // @author          BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
 // @copyright       2020+, BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
 // @homepage        https://github.com/hjk789/Creations/tree/master/JavaScript/Userscripts/YouTube-Mobile-Repeated-Recommendations-Hider
@@ -16,7 +16,7 @@
 // ==/UserScript==
 
 
-//******* SETTINGS ********
+//********** SETTINGS ***********
 
 const maxRepetitions = 2      // The maximum number of times that the same recommended video is allowed to appear on your
                               // homepage before starting to get hidden. Set this to 1 if you want one-time recommendations.
@@ -32,11 +32,23 @@ const countRelated = false    // When false, new related videos are ignored in t
 const dimFilteredHomepage = false  // Whether the repeated recommendations in the homepage should get dimmed (partially faded) instead of completely hidden.
 const dimFilteredRelated = true    // Same thing, but for the related videos.
 
-//*************************
+const dimWatchedVideos = false    // Whether the title of videos already watched should be dimmed, to differentiate from the ones you didn't watched yet. The browser itself is responsible for checking whether the
+                                  // link was already visited or not, so if you delete a video from the browser history it will be treated as "not watched", the same if you watch them in a private window (incognito).
+//*******************************
 
 
 let channelsToHide, partialTitlesToHide
 let processedVideosList
+
+
+if (dimWatchedVideos)
+{
+    // Add the style for dimming watched videos
+    const style = document.createElement("style")
+    style.innerHTML = ":visited { color: #aaa !important; }"
+    document.head.appendChild(style)
+}
+
 
 GM.getValue("channels").then(function(value)
 {
@@ -66,37 +78,67 @@ GM.getValue("channels").then(function(value)
 
             if (isHomepage)
             {
-                const recommendationsContainer = document.querySelector(".rich-grid-renderer-contents")
+                waitForRecommendationsContainer = setInterval(function()
+                {
+                    const recommendationsContainer = document.querySelector(".rich-grid-renderer-contents")
 
-                const firstVideos = recommendationsContainer.querySelectorAll("ytm-rich-item-renderer")    // Because a mutation observer is being used and the script is run after the page is fully
-                                                                                                           // loaded, the observer isn't triggered with the recommendations that appear first.
-                for (let i=0; i < firstVideos.length; i++)                                                 // This does the processing manually to these first ones.
-                    processRecommendation(firstVideos[i], isHomepage)
+                    if (!recommendationsContainer)
+                        return
 
-                const loadedRecommendedVideosObserver = new MutationObserver(function(mutations)           // A mutation observer is being used so that all processings happen only
-                {                                                                                          // when actually needed, which is when more recommendations are loaded.
-                    for (let i=0; i < mutations.length; i++)
-                        processRecommendation(mutations[i].addedNodes[0], isHomepage)
-                })
+                    clearInterval(waitForRecommendationsContainer)
 
-                loadedRecommendedVideosObserver.observe(recommendationsContainer, {childList: true})
+                    const firstVideos = recommendationsContainer.querySelectorAll("ytm-rich-item-renderer")    // Because a mutation observer is being used and the script is run after the page is fully
+                                                                                                               // loaded, the observer isn't triggered with the recommendations that appear first.
+                    for (let i=0; i < firstVideos.length; i++)                                                 // This does the processing manually to these first ones.
+                        processRecommendation(firstVideos[i], isHomepage)
+
+                    const loadedRecommendedVideosObserver = new MutationObserver(function(mutations)           // A mutation observer is being used so that all processings happen only
+                    {                                                                                          // when actually needed, which is when more recommendations are loaded.
+                        for (let i=0; i < mutations.length; i++)
+                            processRecommendation(mutations[i].addedNodes[0], isHomepage)
+                    })
+
+                    loadedRecommendedVideosObserver.observe(recommendationsContainer, {childList: true})
+
+                }, 100)
             }
             else
             {
-                waitForAllRelated = setInterval(function()
+                waitForRelatedVideosContainer = setInterval(function()
                 {
-                    const relatedVideos = document.querySelectorAll("ytm-video-with-context-renderer")
+                    const relatedVideosContainer = document.querySelectorAll("lazy-list")[2]
 
-                    if (relatedVideos.length < 12)
+                    if (!relatedVideosContainer)
                         return
 
-                    clearInterval(waitForAllRelated)
+                    clearInterval(waitForRelatedVideosContainer)
 
-                    for (let i=0; i < relatedVideos.length; i++)
-                        processRecommendation(relatedVideos[i], isHomepage)
+
+                    const firstRelatedVideos = document.querySelectorAll("ytm-video-with-context-renderer")
+
+                    for (let i=0; i < firstRelatedVideos.length; i++)
+                        processRecommendation(firstRelatedVideos[i], isHomepage)
+
+
+                    const loadedRelatedVideosObserver = new MutationObserver(function(mutations)           // A mutation observer is being used so that all processings happen only
+                    {                                                                                      // when actually needed, which is when more recommendations are loaded.
+                        for (let i=0; i < mutations.length; i++)
+                        {
+                            const relatedVideo = mutations[i].addedNodes[0]
+
+                            if (!relatedVideo)  return
+
+                            if (relatedVideo.className == "spinner")
+                                continue
+
+                            processRecommendation(relatedVideo, isHomepage)
+                        }
+                    })
+
+                    loadedRelatedVideosObserver.observe(relatedVideosContainer, {childList: true})
 
                 }, 500)
-                
+
             }
 
         })
@@ -181,7 +223,7 @@ async function processRecommendation(node, isHomepage)
             return
 
         hideOrDimm(node, isHomepage)
-    } 
+    }
     else
     {
         if (maxRepetitions == 1)                // If the script is set to show only one-time recommendations, to avoid unnecessary processings,
