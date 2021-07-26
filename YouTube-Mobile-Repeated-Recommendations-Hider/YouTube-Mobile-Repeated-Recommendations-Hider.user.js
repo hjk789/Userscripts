@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name            YouTube Mobile Repeated Recommendations Hider
 // @description     Hide from YouTube's mobile browser any videos that are recommended more than twice. You can also hide by channel or by partial title.
-// @version         1.12
+// @version         1.12.1
 // @author          BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
 // @copyright       2020+, BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
 // @homepage        https://github.com/hjk789/Creations/tree/master/JavaScript/Userscripts/YouTube-Mobile-Repeated-Recommendations-Hider
@@ -106,7 +106,7 @@ GM.getValue("channels").then(function(value)
             {
                 waitForRelatedVideosContainer = setInterval(function()
                 {
-                    const relatedVideosContainer = document.querySelectorAll("lazy-list")[2]
+                    const relatedVideosContainer = document.querySelector("ytm-video-with-context-renderer").parentElement
 
                     if (!relatedVideosContainer)
                         return
