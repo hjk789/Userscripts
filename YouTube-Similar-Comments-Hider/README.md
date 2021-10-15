@@ -4,7 +4,7 @@ Ensure originality in YouTube's comment section by hiding all sorts of repeated 
 
 ## About
 
-This userscript enables you to clean YouTube of mindless repetitive comments that pollute the comment section of the videos and pushes down the varied and actually interesting comments. It works by comparing the comments to each other and calculating their similarity percentage, and any comment that has a similarity above the determined limit is hidden.
+This userscript enables you to clean YouTube of mindless repetitive comments that pollute the videos' comment section. It works by comparing the comments to each other and calculating their similarity percentage, and any comment that has a similarity above the determined limit is hidden.
 
 There are five tolerance levels you can choose to best suit your preference. The lower the tolerance the more similar comments will get hidden, but also the more false positives, and the higher the tolerance, the lower the false positives, but also the less able the script is to detect similarity. The default tolerance is level 3, which is the most balanced. Some comment sections require a lower or higher tolerance than others, so if you are not happy with the results, just choose a different tolerance in the dropdown menu, all changes are instantly applied, although it may take some seconds on slow computers with a long list of comments.
 
