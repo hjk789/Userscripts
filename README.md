@@ -15,3 +15,9 @@ Adds vertical bars to the left of the comments, enabling you to easily collapse 
 Hide from YouTube's mobile browser homepage any videos that are recommended more than twice. You can also hide by channel or by partial title. [Read more](https://github.com/hjk789/Creations/tree/master/JavaScript/Userscripts/YouTube-Mobile-Repeated-Recommendations-Hider)
 
 [Install link](https://greasyfork.org/scripts/419666-youtube-mobile-repeated-recommendations-hider/code/YouTube%20Mobile%20Repeated%20Recommendations%20Hider.user.js)
+
+## [YouTube Similar Comments Hider](https://github.com/hjk789/Creations/tree/master/JavaScript/Userscripts/YouTube-Similar-Comments-Hider)
+
+Ensure originality in YouTube's comment section by hiding all sorts of repeated comments, copy-paste comments, quotes from the video and saturated memes. [Read more](https://github.com/hjk789/Creations/tree/master/JavaScript/Userscripts/YouTube-Similar-Comments-Hider)
+
+[Install link](https://greasyfork.org/scripts/433914-youtube-similar-comments-hider/code/YouTube%20Similar%20Comments%20Hider.user.js)
