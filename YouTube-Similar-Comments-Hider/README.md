@@ -17,6 +17,6 @@ You can also choose to just mark the filtered comments instead of completely hid
 ## License
 
 - You can view the code, download copies to your devices, install, run, use the features and uninstall this software.
-- Feel free to refer to this userscript, just make sure to include a link to its [GitHub homepage](https://github.com/hjk789/Creations/tree/master/JavaScript/Userscripts/YouTube-Similar-Comments-Hider) or to its [GreasyFork page](https://greasyfork.org/scripts/409500-media-speed-changer).
+- Feel free to refer to this userscript, just make sure to include a link to its [GitHub homepage](https://github.com/hjk789/Creations/tree/master/JavaScript/Userscripts/YouTube-Similar-Comments-Hider) or to its [GreasyFork page](https://greasyfork.org/en/scripts/433914-youtube-similar-comments-hider).
 - You can modify your copy as you like.
 - You cannot do any other action not allowed in this license.
