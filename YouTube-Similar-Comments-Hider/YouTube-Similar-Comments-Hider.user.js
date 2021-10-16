@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name            YouTube Similar Comments Hider
-// @version         1.0
+// @version         1.1
 // @description     Ensure originality in YouTube's comment section by hiding all sorts of repeated comments, copy-paste comments, quotes from the video and saturated memes.
 // @author          BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
 // @copyright       2021+, BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
@@ -32,14 +32,13 @@ let samples = []
 
 const waitForCommentSection = setInterval(function()
 {
-    let commentSection = document.getElementById("sections")
+    let commentSection = document.getElementById("comments").querySelector("#contents")
 
     if (!commentSection)
         return
 
     clearInterval(waitForCommentSection)
 
-    commentSection = commentSection.querySelector("#contents")
 
     /* Attach a mutation observer to the comments section to detect when more comments are loaded, and process them */
 
@@ -55,7 +54,6 @@ const waitForCommentSection = setInterval(function()
     loadedCommentsObserver.observe(commentSection, {childList: true})
 
 
-    /* Create the "Filter tolerance" dropdown menu */
 
     const waitForCommentSectionHeader = setInterval(function()
     {
@@ -64,6 +62,8 @@ const waitForCommentSection = setInterval(function()
 
         clearInterval(waitForCommentSectionHeader)
 
+
+        /* Create the "Filter tolerance" dropdown menu */
 
         const style = document.createElement("style")
         style.innerHTML = "#toleranceMenu div div div:hover { background-color: #e7e7e7 !important; }"
@@ -101,14 +101,14 @@ const waitForCommentSection = setInterval(function()
 
             if (this.checked)
             {
-                const comments = document.getElementById("contents").querySelectorAll("ytd-comment-thread-renderer[style^='opacity']")
+                const comments = document.getElementById("comments").querySelectorAll("ytd-comment-thread-renderer[style^='opacity']")
 
                 for (let i=0; i < comments.length; i++)
                     comments[i].style = "display: none;"
             }
             else
             {
-                const comments = document.getElementById("contents").querySelectorAll("ytd-comment-thread-renderer[style^='display']")
+                const comments = document.getElementById("comments").querySelectorAll("ytd-comment-thread-renderer[style^='display']")
 
                 for (let i=0; i < comments.length; i++)
                     comments[i].style = "opacity: 0.5;"
@@ -132,6 +132,7 @@ const waitForCommentSection = setInterval(function()
         document.getElementById("sort-menu").parentElement.appendChild(toleranceMenuContainer)
 
         document.body.onclick = function() { document.getElementById("toleranceMenu").lastChild.style.visibility = "hidden" }        // Make the dropdown be dismissed when clicked outside of it.
+
 
     }, 100)
 
@@ -168,7 +169,7 @@ function reprocessComments(tolerance)
 {
     treshold = getTreshold(tolerance)
 
-    const comments = document.getElementById("contents").children
+    const comments = document.getElementById("comments").querySelector("#contents").children
 
     processComments(comments, true)
 }
@@ -188,8 +189,7 @@ function processComments(comments, reprocess = false)
             samples.push(comment)
         else
         {
-            /* Reset the style of the filtered comments */
-
+            // Reset the style of the filtered comments
             if (comments[i].style.opacity || comments[i].style.display)
                 comments[i].removeAttribute("style")
         }
@@ -199,20 +199,20 @@ function processComments(comments, reprocess = false)
 
         for (let j=0; j < n; j++)
         {
-            if (reprocess && i == j)       // ... On the other hand, in the next processings, the comparison should stop on equal indexes to not compare to itself.
+            if (reprocess && i == j)       // ... On the other hand, in the reprocessings, the comparison should stop on equal indexes to not compare to itself.
                 break
 
             const sample = samples[j]
 
-            let similarity = calculateSimilarity(sample, comment)
+            let similarity1 = calculateSimilarity(sample, comment)
 
-            if (similarity >= treshold)
+            if (similarity1 >= treshold)
             {
-                similarity = calculateSimilarity(comment, sample)    // Recalculate the other way round to ensure that these two comments are similar to each other in both ways.
+                let similarity2 = calculateSimilarity(comment, sample)    // Recalculate the other way round to ensure that these two comments are similar to each other in both ways.
 
-                if (similarity >= treshold)
+                if (similarity2 >= treshold)
                 {
-                    console.log("Similarity: "+similarity+"   ###   Sample: "+sample+"   ###   Comment: "+comment+"   ###   Treshold: "+treshold)
+                    console.log("Similarity C->S: "+similarity1+"   ###   Similarity S->C: "+similarity2+"   ###   Treshold: "+treshold+"   ###   Sample: "+sample+"   ###   Comment: "+comment)
 
                     if (lightenSimilarComments)
                         comments[i].style.opacity = 0.5
@@ -222,7 +222,6 @@ function processComments(comments, reprocess = false)
                     break
                 }
             }
-
         }
     }
 }
