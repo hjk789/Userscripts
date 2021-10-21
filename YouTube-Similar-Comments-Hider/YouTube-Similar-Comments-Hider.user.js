@@ -238,7 +238,8 @@ function processComments(comments, reprocess = false)
             continue
 
         // Because the comment's side-menu is separated from the comments section, this listens to clicks on each three-dot button and store in a variable in what comment it was clicked, to then be used by the "Block this user" button.
-        comments[i].querySelector("ytd-menu-renderer").onclick = function() { selectedUser = this.parentElement.parentElement.querySelector("#author-text") }
+        const commentMenuButton = comments[i].querySelector("ytd-menu-renderer")
+        if (commentMenuButton)  commentMenuButton.onclick = function() { selectedUser = this.parentElement.parentElement.querySelector("#author-text") }
 
         // Standardize the comments for the processing by making them lowercase and without punctuation marks, diacritics or linebreaks, so that the differences between comments are in the words used instead of the characters.
         const comment = commentBody.textContent.toLocaleLowerCase().replace(/[.,!\-\n]/g, " ").replace(/ +/g, " ").replace(/\?+/g, "?").normalize("NFD").replace(/[\u0300-\u036f*"'’“”]/g, "").trim()
