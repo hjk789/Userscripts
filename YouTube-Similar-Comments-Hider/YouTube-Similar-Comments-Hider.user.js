@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name            YouTube Similar Comments Hider
-// @version         1.2
+// @version         1.2.1
 // @description     Ensure originality in YouTube's comment section by hiding all sorts of repeated comments, copy-paste comments, quotes from the video and saturated memes.
 // @author          BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
 // @copyright       2021+, BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
@@ -18,16 +18,19 @@ const tolerance = 3
 // 1 - Loosely similar: Pretty much all similar comments will be detected, but there will be many false positives. False positives are comments that are *worded* similarly but have two totally different subjects.
 // 2 - Significantly similar: Many similar comments will be detected, but with some false positives.
 // 3 - Very similar: An acceptable detection rate with few false positives, but several comments that are similar, but worded differently, won't be detected.
-// 4 - Mostly similar: Detects only comments that are very close variations of another, such as several comments repeating the same quote from the video with few differences.
+// 4 - Mostly similar: Detects only comments that are close variations of another, such as several comments repeating the same quote from the video with few differences. Few false positives with long comments.
 // 5 - Almost identical: Detects only comments that are mostly copy-pasted with little to no variation.
 
-let lightenSimilarComments = false     // If set to true, all similar comments will be dimmed (faded) instead of completely hidden.
+let lightenSimilarComments = false           // If set to true, all similar comments will be dimmed (faded) instead of completely hidden.
 
+const highToleranceLongComments = true       // Long comments are the most likely to cause and suffer from false positives, so this option makes long comments always be
+                                             // processed with the "Almost identical" tolerance. If set to false, all comments will be processed with the same tolerance.
 //----------------------------------------
 
 
 
-let treshold = getTreshold(tolerance)       // Set the minimum similarity percentage to treat the comment as similar, depending on the tolerance level.
+let treshold = getTreshold(tolerance)
+let highTolerance = getTreshold(5), tmpTreshold
 
 let samples = []
 
@@ -196,6 +199,7 @@ const waitForCommentSection = setInterval(function()
 
 function getTreshold(tolerance)
 {
+    // Return the minimum similarity percentage to treat the comment as similar, depending on the tolerance level.
     return tolerance == 1 ? 25 : tolerance == 2 ? 35 : tolerance == 3 ? 45 : tolerance == 4 ? 55 : 65
 }
 
@@ -273,13 +277,18 @@ function processComments(comments, reprocess = false)
 
             let similarity1 = calculateSimilarity(sample, comment)
 
-            if (similarity1 >= treshold)
+            tmpTreshold = treshold
+
+            if (highToleranceLongComments && (comment.length > 300 || sample.length > 300))
+                tmpTreshold = highTolerance
+
+            if (similarity1 >= tmpTreshold)
             {
                 let similarity2 = calculateSimilarity(comment, sample)    // Recalculate the other way round to ensure that these two comments are similar to each other in both ways.
 
-                if (similarity2 >= treshold)
+                if (similarity2 >= tmpTreshold)
                 {
-                    console.log("Similarity C->S: "+similarity1+"   ###   Similarity S->C: "+similarity2+"   ###   Treshold: "+treshold+"   ###   Sample: "+sample+"   ###   Comment: "+comment)
+                    console.log("Similarity C->S: "+similarity1+"   ###   Similarity S->C: "+similarity2+"   ###   Treshold: "+tmpTreshold+"   ###   Sample: "+sample+"   ###   Comment: "+comment)
 
                     if (lightenSimilarComments)
                         comments[i].style.opacity = 0.5
