@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name            YouTube Similar Comments Hider
-// @version         1.2.1
+// @version         1.2.2
 // @description     Ensure originality in YouTube's comment section by hiding all sorts of repeated comments, copy-paste comments, quotes from the video and saturated memes.
 // @author          BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
 // @copyright       2021+, BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
@@ -50,7 +50,7 @@ GM.getValue("blockedUsers").then(function(value)
 
 const waitForCommentSection = setInterval(function()
 {
-    let commentSection = document.getElementById("comments").querySelector("#contents")
+    let commentSection = document.getElementById("comments")?.querySelector("#contents")
 
     if (!commentSection)
         return
@@ -288,7 +288,7 @@ function processComments(comments, reprocess = false)
 
                 if (similarity2 >= tmpTreshold)
                 {
-                    console.log("Similarity C->S: "+similarity1+"   ###   Similarity S->C: "+similarity2+"   ###   Treshold: "+tmpTreshold+"   ###   Sample: "+sample+"   ###   Comment: "+comment)
+                    console.log("Similarity C->S: "+similarity1.toFixed(2)+"   ###   Similarity S->C: "+similarity2.toFixed(2)+"   ###   Treshold: "+tmpTreshold+"   ###   Sample: "+sample+"   ###   Comment: "+comment)
 
                     if (lightenSimilarComments)
                         comments[i].style.opacity = 0.5
