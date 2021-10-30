@@ -3,7 +3,7 @@
 // @description     Adds vertical bars to the left of the comments, enabling you to easily collapse the parent comments. It also can leave only a specified number of comments expanded and auto-collapse the rest.
 // @author          BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
 // @copyright       2020+, BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
-// @version         1.2.2
+// @version         1.2.3
 // @homepage        https://github.com/hjk789/Creations/tree/master/JavaScript/Userscripts/Collapse-HackerNews-Parent-Comments
 // @license         https://github.com/hjk789/Creations/tree/master/JavaScript/Userscripts/Collapse-HackerNews-Parent-Comments#license
 // @grant           none
@@ -75,7 +75,8 @@ const collapseAll = setInterval(function()       // An interval of 1ms is being 
                 div.onmouseup = function(e)
                 {
                     // Click the "next" link of the parent comment
-                    e.target.commentHier.previousElementSibling.lastChild.click()
+                    if (e.target.commentHier.getBoundingClientRect().y < 0)
+                        e.target.commentHier.previousElementSibling.lastChild.click()
                 }
 
                 let style = "left: " + (-5 + j) + "px; width: 12px; background-color: lightgray; position: absolute; z-index: 99; transition: 0.15s; "
