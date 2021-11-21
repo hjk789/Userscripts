@@ -1,9 +1,9 @@
 // ==UserScript==
 // @name            Media Speed Changer
-// @description     Enables you to change the speed of video and audio with hotkeys (even if the video is inside an iframe)
+// @description     Enables you to change the speed of video and audio with hotkeys (even if the media is inside an iframe)
 // @author          BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
 // @copyright       2020+, BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
-// @version         1.1
+// @version         1.2
 // @homepage        https://github.com/hjk789/Creations/tree/master/Userscripts/Media-Speed-Changer
 // @license         https://github.com/hjk789/Creations/tree/master/Userscripts/Media-Speed-Changer#license
 // @grant           none
@@ -13,24 +13,26 @@
 
 document.onkeyup = function(e)
 {
-    if      (e.shiftKey && e.key == "Pause")       changeSpeed(0.5,  "relative")
-    else if (e.shiftKey && e.key == "PrintScreen") changeSpeed(-0.5, "relative")
-    else if (e.key == "Pause")                     changeSpeed(0.25,  "relative")
-    else if (e.key == "PrintScreen")               changeSpeed(-0.25, "relative")
+    if      (e.shiftKey && e.key == "Pause")       changeSpeed(0.25, "relative")
+    else if (e.shiftKey && e.key == "PrintScreen") changeSpeed(-0.25,"relative")
+    else if (e.key == "Pause")                     changeSpeed(0.5,  "relative")
+    else if (e.key == "PrintScreen")               changeSpeed(-0.5, "relative")
     else if (e.shiftKey && e.key == "ScrollLock")  changeSpeed(1)
-    else if (e.key == "ScrollLock")                changeSpeed(2.5)
-    else if (e.ctrlKey && e.key == "Cancel")       changeSpeed(4)  // Ctrl + ScrollLock/Pause = Cancel
-    else if (e.ctrlKey && e.key == "Insert")       changeSpeed(16)
+    else if (e.shiftKey && e.key == "Insert")      changeSpeed(3)
+    else if (e.ctrlKey && (e.key == "Cancel" || e.key == "ScrollLock"))  changeSpeed(4)  // Ctrl + ScrollLock/Pause = Cancel
+    else if (e.key == "ScrollLock")                changeSpeed(2)
+    else if (e.ctrlKey && e.key == "Insert")       changeSpeed(8)
+    else if (e.key == "Insert")                    changeSpeed(16)
 }
 
 function changeSpeed(value, mode = "absolute")
 {
     const medias = document.querySelectorAll("video, audio")
 
-    for (i=0; i < medias.length; i++)
+    for (let i=0; i < medias.length; i++)
         medias[i].playbackRate = (mode == "absolute" ? value : medias[i].playbackRate + value)
 
-    for (i=0; i < window.frames.length; i++)
+    for (let i=0; i < window.frames.length; i++)
         window.frames[i].postMessage("changeSpeed(" + value + ",'" + mode + "')", "*")
 }
 
@@ -45,7 +47,7 @@ if (window.self == window.top)
         {
             const iframes = document.querySelectorAll("iframe")
 
-            for (i=0; i < iframes.length; i++)
+            for (let i=0; i < iframes.length; i++)
             {
                 if (/youtube|player|video|\.mp4|audio/.test(iframes[i].src) && !/comments/.test(iframes[i].src))  // Only frames that are likely for media embedding
                 {
