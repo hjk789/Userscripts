@@ -3,7 +3,7 @@
 // @description     Adds vertical bars to the left of the comments, enabling you to easily collapse the parent comments. It also can leave only a specified number of comments expanded and auto-collapse the rest.
 // @author          BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
 // @copyright       2020+, BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
-// @version         1.2.3
+// @version         1.2.5
 // @homepage        https://github.com/hjk789/Creations/tree/master/JavaScript/Userscripts/Collapse-HackerNews-Parent-Comments
 // @license         https://github.com/hjk789/Creations/tree/master/JavaScript/Userscripts/Collapse-HackerNews-Parent-Comments#license
 // @grant           none
@@ -13,8 +13,8 @@
 
 //--------------- Settings -----------------
 
-const autoCollapse = true       // Whether all comments, other than the number of comments below, should be auto-collapsed.
-                                // If set to false, all comments will be left expanded and the settings below have no effect.
+const autoCollapse = false       // Whether all comments, other than the number of comments below, should be auto-collapsed.
+                                 // If set to false, all comments will be left expanded and the settings below have no effect.
     const numberOfRoots = 5
     const numberOfReplies = 3
     const numberOfRepliesOfReplies = 1
@@ -34,21 +34,25 @@ document.body.appendChild(fadeOnHoverStyle)
 const spacingImgs = document.querySelectorAll(".ind img[height='1']:not([width='14'])")
 
 let root = 0
-let i = spacingImgs.length-1        // It's required to loop backwards, otherwise the hidden comments reappear when collapsed.
+let i = spacingImgs.length-1                // It's required to loop backwards, otherwise the hidden comments reappear when collapsed.
 let commentHier = []
 
-const collapseAll = setInterval(function()       // An interval of 1ms is being used to prevent the page from freezing until it finishes. Also, it creates a cool effect when
-{                                                // the comments are being collapsed. It does make it take a few more seconds to finish in comment-heavy posts (150+) though.
+const collapseAll = setInterval(function()              // An interval of 1ms is being used to prevent the page from freezing until it finishes. Also, it creates a cool effect when
+{                                                       // the comments are being collapsed. It does make it take a few more seconds to finish in comment-heavy posts (150+) though.
     let commentContainer = spacingImgs[i].parentElement.parentElement.parentElement.parentElement.parentElement.parentElement
-    commentContainer.firstChild.style = "border-top: 5px transparent solid"      // To visually separate each vertical bar.
+    commentContainer.firstChild.style = "border-top: 5px transparent solid"             // To visually separate each vertical bar.
     spacingImgs[i].parentElement.style = "position: relative"
 
-    if (autoCollapse && !commentContainer.classList.contains("coll"))       // Collapse only if it's not collapsed yet. This is for signed-in users, as HN remembers which comments were collapsed.
+    const clicky = commentContainer.querySelectorAll(".clicky:not(.togg)")              // HN added a scrolling animation to the hierarchy links, which breaks the script.
+    for (let i=0; i < clicky.length; i++)                                               // The animation is only applied to elements with the class "clicky".
+        clicky[i].className = clicky[i].className.replace("clicky","")                  // This removes the clicky class from every hierarchy link of the comment.
+
+    if (autoCollapse && !commentContainer.classList.contains("coll"))               // Collapse only if it's not collapsed yet. This is for signed-in users, as HN remembers which comments were collapsed.
         commentContainer.querySelector(".togg").click()
 
     i--
 
-    if (i == -1)    // When finished collapsing all comments, now it's time to add the bars.
+    if (i == -1)                // When finished collapsing all comments, now it's time to add the bars.
     {
         clearInterval(collapseAll)
 
@@ -64,19 +68,21 @@ const collapseAll = setInterval(function()       // An interval of 1ms is being 
 
 
             let divs = []
-            for (let j = spacingImgs[i].width; j >= 0; j -= 40)      // Start adding the vertical bar from the current depth and go backwards.
+            for (let j = spacingImgs[i].width; j >= 0; j -= 40)             // Start adding the vertical bar from the current depth and go backwards.
             {
                 // Create the vertical bar
 
                 const div = document.createElement("div")
                 div.className = "verticalBar"
-                div.commentHier = commentHier[j/40]            // Store in an attribute of the element this comment's parent respective to the level of the vertical bar, for easy access.
-                div.onclick = commentHier[j/40].onclick        // When a vertical bar is clicked, collapse the respective parent comment.
-                div.onmouseup = function(e)
+                div.commentHier = commentHier[j/40]             // Store in an attribute of the element this comment's parent respective to the level of the vertical bar, for easy access.
+                div.onclick = function(e)
                 {
-                    // Click the "next" link of the parent comment
+                    e.target.commentHier.click()                // When a vertical bar is clicked, collapse the respective parent comment.
+
+                    // Click the "next" link of the parent comment when it's out of view.
                     if (e.target.commentHier.getBoundingClientRect().y < 0)
                         e.target.commentHier.previousElementSibling.lastChild.click()
+
                 }
 
                 let style = "left: " + (-5 + j) + "px; width: 12px; background-color: lightgray; position: absolute; z-index: 99; transition: 0.15s; "
@@ -97,7 +103,7 @@ const collapseAll = setInterval(function()       // An interval of 1ms is being 
                 spacingImgs[i].parentElement.appendChild(divs[j])
         }
 
-        if (autoCollapse)      // When finished collapsing and adding the vertical bars to all comments, now it's time to expand only a few of the first comments.
+        if (autoCollapse)               // When finished collapsing and adding the vertical bars to all comments, now it's time to expand only a few of the first comments.
         {
             let sub40, sub80
 
@@ -105,23 +111,23 @@ const collapseAll = setInterval(function()       // An interval of 1ms is being 
             {
                 commentToggle = spacingImgs[i].parentElement.parentElement.querySelector(".togg")
 
-                if (spacingImgs[i].width == 0)      // If it's a root comment.
+                if (spacingImgs[i].width == 0)          // If it's a root comment.
                 {
                     root++
-                    if (root == numberOfRoots + 1)      // If there's already <numberOfRoots> comments expanded, then stop expanding.
+                    if (root == numberOfRoots + 1)          // If there's already <numberOfRoots> comments expanded, then stop expanding.
                         break
 
                     commentToggle.click()
                     sub40 = 0
                     sub80 = 0
                 }
-                else if (spacingImgs[i].width == 40 && sub40 < numberOfReplies)     // If it's a reply to the root comment, only expand up to <numberOfReplies>.
+                else if (spacingImgs[i].width == 40 && sub40 < numberOfReplies)         // If it's a reply to the root comment, only expand up to <numberOfReplies>.
                 {
                     commentToggle.click()
                     sub40++
                     sub80 = 0
                 }
-                else if (spacingImgs[i].width == 80 && sub80 < numberOfRepliesOfReplies)      // If it's a reply to the reply, only expand up to <numberOfRepliesOfReplies>.
+                else if (spacingImgs[i].width == 80 && sub80 < numberOfRepliesOfReplies)            // If it's a reply to the reply, only expand up to <numberOfRepliesOfReplies>.
                 {
                     commentToggle.click()
                     sub80++
