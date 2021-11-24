@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name            YouTube Similar Comments Hider
-// @version         1.2.2
+// @version         1.2.5
 // @description     Ensure originality in YouTube's comment section by hiding all sorts of repeated comments, copy-paste comments, quotes from the video and saturated memes.
 // @author          BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
 // @copyright       2021+, BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
@@ -17,7 +17,7 @@
 const tolerance = 3
 // 1 - Loosely similar: Pretty much all similar comments will be detected, but there will be many false positives. False positives are comments that are *worded* similarly but have two totally different subjects.
 // 2 - Significantly similar: Many similar comments will be detected, but with some false positives.
-// 3 - Very similar: An acceptable detection rate with few false positives, but several comments that are similar, but worded differently, won't be detected.
+// 3 - Very similar: An acceptable detection rate with few to no false positives, but several comments that are similar, but worded differently, won't be detected.
 // 4 - Mostly similar: Detects only comments that are close variations of another, such as several comments repeating the same quote from the video with few differences. Few false positives with long comments.
 // 5 - Almost identical: Detects only comments that are mostly copy-pasted with little to no variation.
 
@@ -34,7 +34,7 @@ let highTolerance = getTreshold(5), tmpTreshold
 
 let samples = []
 
-let blockedUsers, selectedUser
+let blockedUsers, selectedUser, blockUserContainer
 
 GM.getValue("blockedUsers").then(function(value)
 {
@@ -159,13 +159,13 @@ const waitForCommentSection = setInterval(function()
 
         /* Create the "Block this user" option in the comment's side-menu */
         {
-            const blockUserContainer = document.createElement("div")
+            blockUserContainer = document.createElement("div")
             blockUserContainer.id = "blockUser"
             blockUserContainer.style = "background-color: white; font-size: 14px; text-align: center; padding: 8px 0px 8px 0px; cursor: pointer; margin-bottom: 8px;"
             blockUserContainer.innerHTML = "Block this user"
             blockUserContainer.onclick = function()
             {
-                if (confirm("This will hide all comments from ''"+selectedUser.innerText+"'' in any video. Are you sure?"))
+                if (confirm("This will hide all comments from ''"+selectedUser.innerText.trim()+"'' in any video. Are you sure?"))
                 {
                     blockedUsers.push(selectedUser.href)
                     GM.setValue("blockedUsers", JSON.stringify(blockedUsers))
@@ -186,9 +186,9 @@ const waitForCommentSection = setInterval(function()
 
             const blockUserParent = document.querySelector("ytd-menu-popup-renderer")
             blockUserParent.style = "max-height: max-content !important; max-width: max-content !important;"      // Change the max width and height so that the new item fits in the menu.
-
-            blockUserParent.appendChild(blockUserContainer)
         }
+
+        document.body.onclick = function() { document.getElementById("blockUser")?.remove() }               // Remove the "Block this user" option when not used.
 
 
     }, 100)
@@ -243,7 +243,17 @@ function processComments(comments, reprocess = false)
 
         // Because the comment's side-menu is separated from the comments section, this listens to clicks on each three-dot button and store in a variable in what comment it was clicked, to then be used by the "Block this user" button.
         const commentMenuButton = comments[i].querySelector("ytd-menu-renderer")
-        if (commentMenuButton)  commentMenuButton.onclick = function() { selectedUser = this.parentElement.parentElement.querySelector("#author-text") }
+        if (commentMenuButton)
+        {
+            commentMenuButton.onclick = function()
+            {
+                event.stopPropagation()             // Prevent the "Block this user" option from being removed by clicking the comment menu.
+
+                selectedUser = this.parentElement.parentElement.querySelector("#author-text")
+
+                document.querySelector("ytd-menu-popup-renderer").appendChild(blockUserContainer)               // YouTube reuses the same menu element for every menu in the site. This adds the "Block this user" option
+            }                                                                                                   // to the menu only when the comment menu is opened. It's then removed whenever any other menu is opened.
+        }
 
         // Standardize the comments for the processing by making them lowercase and without punctuation marks, diacritics or linebreaks, so that the differences between comments are in the words used instead of the characters.
         const comment = commentBody.textContent.toLocaleLowerCase().replace(/[.,!\-\n]/g, " ").replace(/ +/g, " ").replace(/\?+/g, "?").normalize("NFD").replace(/[\u0300-\u036f*"'’“”]/g, "").trim()
@@ -279,7 +289,7 @@ function processComments(comments, reprocess = false)
 
             tmpTreshold = treshold
 
-            if (highToleranceLongComments && (comment.length > 300 || sample.length > 300))
+            if (highToleranceLongComments && (comment.length > 200 || sample.length > 200))
                 tmpTreshold = highTolerance
 
             if (similarity1 >= tmpTreshold)
