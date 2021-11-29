@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name            YouTube Similar Comments Hider
-// @version         1.2.5
-// @description     Ensure originality in YouTube's comment section by hiding all sorts of repeated comments, copy-paste comments, quotes from the video and saturated memes.
+// @version         1.4
+// @description     Ensure originality in YouTube's comment section by hiding all sorts of repeated comments, copy-paste comments, repeated quotes from the video and saturated memes.
 // @author          BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
 // @copyright       2021+, BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
 // @homepage        https://github.com/hjk789/Creations/tree/master/JavaScript/Userscripts/YouTube-Similar-Comments-Hider
@@ -16,21 +16,19 @@
 
 const tolerance = 3
 // 1 - Loosely similar: Pretty much all similar comments will be detected, but there will be many false positives. False positives are comments that are *worded* similarly but have two totally different subjects.
-// 2 - Significantly similar: Many similar comments will be detected, but with some false positives.
-// 3 - Very similar: An acceptable detection rate with few to no false positives, but several comments that are similar, but worded differently, won't be detected.
-// 4 - Mostly similar: Detects only comments that are close variations of another, such as several comments repeating the same quote from the video with few differences. Few false positives with long comments.
+// 2 - Significantly similar: Most similar comments will be detected, but with some or few false positives.
+// 3 - Very similar: A moderate detection with few to no false positives, but several comments that are similar, but worded differently, won't be detected.
+// 4 - Mostly similar: Detects comments that are close variations of another, such as several comments repeating the same quote from the video with few differences.
 // 5 - Almost identical: Detects only comments that are mostly copy-pasted with little to no variation.
 
 let lightenSimilarComments = false           // If set to true, all similar comments will be dimmed (faded) instead of completely hidden.
 
-const highToleranceLongComments = true       // Long comments are the most likely to cause and suffer from false positives, so this option makes long comments always be
-                                             // processed with the "Almost identical" tolerance. If set to false, all comments will be processed with the same tolerance.
 //----------------------------------------
 
 
 
 let treshold = getTreshold(tolerance)
-let highTolerance = getTreshold(5), tmpTreshold
+let tolerance4 = getTreshold(4) + 10, tolerance5 = getTreshold(5)
 
 let samples = []
 
@@ -102,11 +100,11 @@ const waitForCommentSection = setInterval(function()
             var dropdownItemsContainer = document.createElement("div")
             dropdownItemsContainer.style = "font-weight: initial; letter-spacing: 0.3px; padding-top: 7px;"
 
-            createToleranceDropdownItem("Loosely similar", 1, dropdownItemsContainer)
-            createToleranceDropdownItem("Significantly similar", 2, dropdownItemsContainer)
-            createToleranceDropdownItem("Very similar", 3, dropdownItemsContainer)
-            createToleranceDropdownItem("Mostly similar", 4, dropdownItemsContainer)
-            createToleranceDropdownItem("Almost indentical", 5, dropdownItemsContainer)
+            createToleranceDropdownItem("Loosely similar", 1, dropdownItemsContainer, "Pretty much all similar comments will be detected, but there will be many false positives.")
+            createToleranceDropdownItem("Significantly similar", 2, dropdownItemsContainer, "Most similar comments will be detected, but with some or few false positives.")
+            createToleranceDropdownItem("Very similar", 3, dropdownItemsContainer, "A moderate detection with few to no false positives, but several comments that are similar, but worded differently, won't be detected.")
+            createToleranceDropdownItem("Mostly similar", 4, dropdownItemsContainer, "Detects comments that are close variations of another.")
+            createToleranceDropdownItem("Almost indentical", 5, dropdownItemsContainer, "Detects only comments that are mostly copy-pasted with little to no variation.")
 
             dropdownContainer.appendChild(dropdownItemsContainer)
 
@@ -114,7 +112,7 @@ const waitForCommentSection = setInterval(function()
 
             document.getElementById("sort-menu").parentElement.appendChild(toleranceMenuContainer)
 
-            document.body.onclick = function() { document.getElementById("toleranceMenu").lastChild.style.visibility = "hidden" }        // Make the dropdown be dismissed when clicked outside of it.
+            document.body.onclick = function() { document.getElementById("toleranceMenu").lastChild.style.visibility = "hidden" }               // Make the dropdown be dismissed when clicked outside of it.
         }
 
 
@@ -185,10 +183,16 @@ const waitForCommentSection = setInterval(function()
             commentMenuButton.click()      // The comment menu doesn't exist in the HTML before it's clicked for the first time. This forces it to be created and dismisses it immediately.
 
             const blockUserParent = document.querySelector("ytd-menu-popup-renderer")
-            blockUserParent.style = "max-height: max-content !important; max-width: max-content !important;"      // Change the max width and height so that the new item fits in the menu.
+            blockUserParent.style = "max-height: max-content !important; max-width: max-content !important;"                // Change the max width and height so that the new item fits in the menu.
         }
 
-        document.body.onclick = function() { document.getElementById("blockUser")?.remove() }               // Remove the "Block this user" option when not used.
+        document.body.onclick = function()
+        {
+            document.getElementById("blockUser")?.remove()                // Remove the "Block this user" option when not used.
+
+            const toleranceMenu = document.getElementById("toleranceMenu")
+            if (toleranceMenu)  toleranceMenu.firstElementChild.style.visibility = "hidden"              // Dismiss the Filter Tolerance menu when clicked outside.
+        }
 
 
     }, 100)
@@ -199,20 +203,21 @@ const waitForCommentSection = setInterval(function()
 
 function getTreshold(tolerance)
 {
-    // Return the minimum similarity percentage to treat the comment as similar, depending on the tolerance level.
-    return tolerance == 1 ? 25 : tolerance == 2 ? 35 : tolerance == 3 ? 45 : tolerance == 4 ? 55 : 65
+    // Return the minimum threshold to treat the comment as similar, depending on the tolerance level. The final threshold can be bigger than that, but not lower.
+    return tolerance == 1 ? 14 : tolerance == 2 ? 24 : tolerance == 3 ? 35 : tolerance == 4 ? 45 : 65
 }
 
-function createToleranceDropdownItem(text, toleranceLevel, container)
+function createToleranceDropdownItem(text, toleranceLevel, container, title)
 {
     const item = document.createElement("div")
     item.innerHTML = text
+    item.title = title
     item.style.padding = "15px"
     item.onclick = function()
     {
-        this.parentElement.querySelector("[style*='background-color']").style.backgroundColor = ""        // Remove the selected style from the previous selected item.
+        this.parentElement.querySelector("[style*='background-color']").style.backgroundColor = ""              // Remove the selection style from the previous selected item.
         this.style.backgroundColor = "#e7e7e7"
-        this.parentElement.parentElement.style.visibility = "hidden !important"        // Hide the dropdown list when an item is selected.
+        this.parentElement.parentElement.style.visibility = "hidden !important"             // Hide the dropdown list when an item is selected.
 
         reprocessComments(getTreshold(toleranceLevel))
     }
@@ -238,10 +243,11 @@ function processComments(comments, reprocess = false)
     for (let i=0; i < comments.length; i++)
     {
         const commentBody = comments[i].querySelector("#content-text")
-        if (!commentBody)          // Sometimes the comments list includes an empty object. When it's such a case, skip to the next one.
+        if (!commentBody)               // Sometimes the comments list includes an empty object. When it's such a case, skip to the next one.
             continue
 
-        // Because the comment's side-menu is separated from the comments section, this listens to clicks on each three-dot button and store in a variable in what comment it was clicked, to then be used by the "Block this user" button.
+        // Because the comment's side-menu is separated from the comments section, this listens to clicks on each three-dot
+        // button and store in a variable in what comment it was clicked, to then be used by the "Block this user" button.
         const commentMenuButton = comments[i].querySelector("ytd-menu-renderer")
         if (commentMenuButton)
         {
@@ -255,8 +261,9 @@ function processComments(comments, reprocess = false)
             }                                                                                                   // to the menu only when the comment menu is opened. It's then removed whenever any other menu is opened.
         }
 
-        // Standardize the comments for the processing by making them lowercase and without punctuation marks, diacritics or linebreaks, so that the differences between comments are in the words used instead of the characters.
-        const comment = commentBody.textContent.toLocaleLowerCase().replace(/[.,!\-\n]/g, " ").replace(/ +/g, " ").replace(/\?+/g, "?").normalize("NFD").replace(/[\u0300-\u036f*"'’“”]/g, "").trim()
+        // Standardize the comments for the processing by making them lowercase and without punctuation marks, diacritics, linebreaks or
+        // characters repeated more than twice, so that the differences between comments are in the words used instead of the characters.
+        const comment = commentBody.textContent.toLocaleLowerCase().replace(/[.,!\-\n]/g, " ").replace(/ +/g, " ").replace(/(.)\1+/gu, "$1").replace(/(👏|🤩|😁|😍|❤️|👍🏼|💯|👊🏻)+/g, "EMJ").normalize("NFD").replace(/[\u0300-\u036f*"'’“”]/g, "").trim()
 
         if (!reprocess)             // If it's a reprocess, don't add the comment again to the samples list, otherwise the list would get duplicated.
             samples.push(comment)
@@ -267,14 +274,14 @@ function processComments(comments, reprocess = false)
                 comments[i].removeAttribute("style")
         }
 
-        if (blockedUsers.includes(comments[i].querySelector("#author-text").href))     // The check need to be made *after* the push, otherwise the comments list and the samples list get out of sync.
+        if (blockedUsers.includes(comments[i].querySelector("#author-text").href))              // The check need to be made *after* the push, otherwise the comments list and the samples list get out of sync.
         {
             comments[i].style.display = "none"
             continue
         }
 
         let n = samples.length
-        if (!reprocess)  n--               // The first time the processing is done, the comment should not be compared to the sample added last, as it would be comparing to itself ...
+        if (!reprocess)  n--                // The first time the processing is done, the comment should not be compared to the sample added last, as it would be comparing to itself ...
 
         /* Compare the comment with the previous ones */
 
@@ -285,20 +292,37 @@ function processComments(comments, reprocess = false)
 
             const sample = samples[j]
 
-            let similarity1 = calculateSimilarity(sample, comment)
+            const similarity1 = calculateSimilarity(sample, comment)
 
-            tmpTreshold = treshold
+            const lengthSum = comment.length + sample.length
 
-            if (highToleranceLongComments && (comment.length > 200 || sample.length > 200))
-                tmpTreshold = highTolerance
+            let tmpTreshold = lengthSum * treshold/100              // The length of both comments is connected to the minimum threshold, this way the threshold is adapted to each comparison.
+
+            if (lengthSum/100 < 1)
+                tmpTreshold /= lengthSum/100
+
+            if (treshold < tolerance5)              // The tolerance 5 is much stricter than the other tolerances, so it can't be treated as the limit for normal tolerances, and must instead be treated separately.
+            {
+                if (tmpTreshold > tolerance4)              // Don't let the final threshold be too high, otherwise several long similar comments wouldn't be detected.
+                    tmpTreshold = tolerance4
+            }
+            else if (tmpTreshold > tolerance5)
+                    tmpTreshold = tolerance5
+
 
             if (similarity1 >= tmpTreshold)
             {
-                let similarity2 = calculateSimilarity(comment, sample)    // Recalculate the other way round to ensure that these two comments are similar to each other in both ways.
+                const similarity2 = calculateSimilarity(comment, sample)                // Recalculate the other way round to ensure that the two comments are similar to each other in both ways.
 
                 if (similarity2 >= tmpTreshold)
                 {
-                    console.log("Similarity C->S: "+similarity1.toFixed(2)+"   ###   Similarity S->C: "+similarity2.toFixed(2)+"   ###   Treshold: "+tmpTreshold+"   ###   Sample: "+sample+"   ###   Comment: "+comment)
+                    console.log("Similarity C->S: "+similarity1.toFixed(2)
+                                +"   ###   Similarity S->C: "+similarity2.toFixed(2)
+                                +"   ###   Treshold: "+tmpTreshold.toFixed(2)
+                                +"   ###   C length: "+comment.length
+                                +"   ###   S length: "+sample.length
+                                +"   ###   Sample: "+sample
+                                +"   ###   Comment: "+comment)
 
                     if (lightenSimilarComments)
                         comments[i].style.opacity = 0.5
@@ -317,24 +341,24 @@ function calculateSimilarity(a, b)
     let hits = 0
     let string = ""
 
-    for (let i=0; i < b.length; i++)       // For each character of the comment ...
+    for (let i=0; i < b.length; i++)                // For each character of the comment ...
     {
-        string += b[i]                     // ... append it to a string ...
+        string += b[i]                              // ... append it to a string ...
 
-        if (a.includes(string))            // ... and check if the resulting string can be found in the other comment, and if so, continue appending the characters.
+        if (a.includes(string))                     // ... and check if the resulting string can be found in the sample comment, and if so, continue appending the characters.
         {
-            if (string.length > 2)         // When the other comment contains the string, when it's at least 3 characters long ...
+            if (string.length > 2)                  // When the sample comment contains the string, when it's at least 3 characters long ...
             {
-                hits++                     // ... start counting the number of hits for each character.
+                hits++                              // ... start counting the number of hits for each character.
 
-                if (string.length == 3)    // If the string has three characters, recover the two uncounted hits.
+                if (string.length == 3)             // If the string has three characters, recover the two uncounted hits.
                     hits += 2
             }
         }
-        else string = ""                   // If the comment doesn't contain the string, clear the string and start building it again with the rest of the characters.
+        else string = ""                            // If the comment doesn't contain the string, clear the string and start building it again with the rest of the characters.
     }
 
-    const similarity = hits/b.length*100      // Get the proportion of hits out of the total of characters of the comment.
+    const similarity = hits/b.length*100            // Get the proportion of hits out of the total of characters of the comment.
 
     return similarity
 }
