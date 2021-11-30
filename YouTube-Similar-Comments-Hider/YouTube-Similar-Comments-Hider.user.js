@@ -4,8 +4,8 @@
 // @description     Ensure originality in YouTube's comment section by hiding all sorts of repeated comments, copy-paste comments, repeated quotes from the video and saturated memes.
 // @author          BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
 // @copyright       2021+, BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
-// @homepage        https://github.com/hjk789/Creations/tree/master/JavaScript/Userscripts/YouTube-Similar-Comments-Hider
-// @license         https://github.com/hjk789/Creations/tree/master/JavaScript/Userscripts/YouTube-Similar-Comments-Hider#license
+// @homepage        https://github.com/hjk789/Userscripts/tree/master/YouTube-Similar-Comments-Hider
+// @license         https://github.com/hjk789/Userscripts/tree/master/YouTube-Similar-Comments-Hider#license
 // @match           https://www.youtube.com/watch*
 // @grant           GM.getValue
 // @grant           GM.setValue

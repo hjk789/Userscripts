@@ -4,8 +4,8 @@
 // @author          BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
 // @copyright       2020+, BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
 // @version         1.2.5
-// @homepage        https://github.com/hjk789/Creations/tree/master/JavaScript/Userscripts/Collapse-HackerNews-Parent-Comments
-// @license         https://github.com/hjk789/Creations/tree/master/JavaScript/Userscripts/Collapse-HackerNews-Parent-Comments#license
+// @homepage        https://github.com/hjk789/Userscripts/tree/master/Collapse-HackerNews-Parent-Comments
+// @license         https://github.com/hjk789/Userscripts/tree/master/Collapse-HackerNews-Parent-Comments#license
 // @grant           none
 // @include         https://news.ycombinator.com/item*
 // ==/UserScript==

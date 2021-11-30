@@ -30,6 +30,6 @@ javascript:(function(){function changeSpeed(e,n="absolute"){const a=document.que
 ## License
 
 - You can view the code, download copies to your devices, install, run, use the features and uninstall this software.
-- Feel free to refer to this userscript, just make sure to include a link to its [repository homepage](https://github.com/hjk789/Creations/tree/master/JavaScript/Userscripts/Media-Speed-Changer) or to its [GreasyFork page](https://greasyfork.org/scripts/409500-media-speed-changer). 
+- Feel free to refer to this userscript, just make sure to include a link to its [repository homepage](https://github.com/hjk789/Userscripts/tree/master/Media-Speed-Changer) or to its [GreasyFork page](https://greasyfork.org/scripts/409500-media-speed-changer).
 - You can modify your copy as you like.
-- You cannot do any other action not allowed in this license.  
+- You cannot do any other action not allowed in this license.

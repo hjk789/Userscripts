@@ -4,8 +4,8 @@
 // @author          BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
 // @copyright       2020+, BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
 // @version         1.2
-// @homepage        https://github.com/hjk789/Creations/tree/master/Userscripts/Media-Speed-Changer
-// @license         https://github.com/hjk789/Creations/tree/master/Userscripts/Media-Speed-Changer#license
+// @homepage        https://github.com/hjk789/Userscripts/tree/master/Media-Speed-Changer
+// @license         https://github.com/hjk789/Userscripts/tree/master/Media-Speed-Changer#license
 // @grant           none
 // @include         *
 // @namespace https://greasyfork.org/users/679182
