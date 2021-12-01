@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name            YouTube Mobile Repeated Recommendations Hider
 // @description     Hide from YouTube's mobile browser any videos that are recommended more than twice. You can also hide by channel or by partial title.
-// @version         1.12.1
+// @version         1.13
 // @author          BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
 // @copyright       2020+, BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
 // @homepage        https://github.com/hjk789/Userscripts/tree/master/YouTube-Mobile-Repeated-Recommendations-Hider
@@ -26,7 +26,7 @@ const filterPremiere = false  // Whether to include in the filtering repeated vi
 
 const filterRelated = true    // Whether the related videos (the ones below the video you are watching) should also be filtered. Set this to false if you want to keep them untouched.
 
-const countRelated = false    // When false, new related videos are ignored in the countings and are allowed to appear any number of times, as long as they don't appear in the
+const countRelated = true     // When false, new related videos are ignored in the countings and are allowed to appear any number of times, as long as they don't appear in the
                               // homepage recommendations. If set to true, the related videos are counted even if they never appeared in the homepage.
 
 const dimFilteredHomepage = false  // Whether the repeated recommendations in the homepage should get dimmed (partially faded) instead of completely hidden.
@@ -39,6 +39,7 @@ const dimWatchedVideos = false    // Whether the title of videos already watched
 
 let channelsToHide, partialTitlesToHide
 let processedVideosList
+let onViewObserver
 
 
 if (dimWatchedVideos)
@@ -74,11 +75,20 @@ GM.getValue("channels").then(function(value)
         {                                                                                              // an array is much faster and lighter than calling GM.getValue for every recommendation.
             processedVideosList = GmList
 
+            onViewObserver = new IntersectionObserver((entries) =>                  // An intersection observer is being used so that the recommendations are counted only
+            {                                                                       // after the user actually sees them on the screen, instead of when they are loaded.
+                entries.forEach(entry =>
+                {
+                    if (entry.isIntersecting)
+                        processRecommendation(entry.target, isHomepage)
+                })
+            }, {threshold: 1.0})                                            // Only trigger the observer when the recommendation is completely visible.
+
             const isHomepage = !/watch/.test(location.href)
 
             if (isHomepage)
             {
-                waitForRecommendationsContainer = setInterval(function()
+                const waitForRecommendationsContainer = setInterval(function()
                 {
                     const recommendationsContainer = document.querySelector(".rich-grid-renderer-contents")
 
@@ -86,6 +96,7 @@ GM.getValue("channels").then(function(value)
                         return
 
                     clearInterval(waitForRecommendationsContainer)
+
 
                     const firstVideos = recommendationsContainer.querySelectorAll("ytm-rich-item-renderer")    // Because a mutation observer is being used and the script is run after the page is fully
                                                                                                                // loaded, the observer isn't triggered with the recommendations that appear first.
@@ -104,7 +115,7 @@ GM.getValue("channels").then(function(value)
             }
             else
             {
-                waitForRelatedVideosContainer = setInterval(function()
+                const waitForRelatedVideosContainer = setInterval(function()
                 {
                     const relatedVideosContainer = document.querySelector("ytm-video-with-context-renderer").parentElement
 
@@ -152,18 +163,18 @@ async function processRecommendation(node, isHomepage)
     if (!node) return
 
     const videoTitleEll = node.querySelector("h3")
-    const videoTitleText = videoTitleEll.textContent.toLowerCase()                    // Convert the title's text to lowercase so that there's no distinction with uppercase letters.
+    const videoTitleText = videoTitleEll.textContent.toLowerCase()                      // Convert the title's text to lowercase so that there's no distinction with uppercase letters.
     const videoChannel = videoTitleEll.nextSibling.firstChild.firstChild.textContent
     const videoUrl = videoTitleEll.parentElement.href
     const videoMenuBtn = node.querySelector("ytm-menu")
     const timeLabelEll = node.querySelector("ytm-thumbnail-overlay-time-status-renderer")
-    const isNotPremiere = timeLabelEll ? /\d/.test(timeLabelEll.textContent) : true        // Check whether the video is still to be premiered. The same element that shows the video time
-                                                                                           // length is the one that says "PREMIERE", so if there's a digit in there, then it's not a premiere.
+    const isNotPremiere = timeLabelEll ? /\d/.test(timeLabelEll.textContent) : true             // Check whether the video is still to be premiered. The same element that shows the video time
+                                                                                                // length is the one that says "PREMIERE", so if there's a digit in there, then it's not a premiere.
     if (videoMenuBtn)
     {
         videoMenuBtn.onclick = function()
         {
-            waitForMenu = setInterval(function(node, videoChannel)
+            const waitForMenu = setInterval(function(node, videoChannel)
             {
                 const menu = document.getElementById("menu")
 
@@ -226,6 +237,21 @@ async function processRecommendation(node, isHomepage)
     }
     else
     {
+        if (!node.classList.contains("offView"))
+        {
+            node.classList.add("offView")               // Add this class to mark the recommendations waiting to be counted.
+
+            onViewObserver.observe(node)                // Wait for the recommendation to appear on screen.
+
+            return                                      // And don't do anything else until that happens.
+        }
+        else
+        {
+            node.classList.remove("offView")
+
+            onViewObserver.unobserve(node)              // When the recommendation finally appears on the screen and is processed, stop observing it so it doesn't trigger the observer again.
+        }
+
         if (maxRepetitions == 1)                // If the script is set to show only one-time recommendations, to avoid unnecessary processings,
         {                                       // rightaway mark to hide, in the next time the page is loaded, every video not found in the storage.
             if (!isHomepage && !countRelated)
