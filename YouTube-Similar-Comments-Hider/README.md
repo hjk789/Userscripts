@@ -16,8 +16,6 @@ You can also choose to just mark the filtered comments instead of completely hid
 
 ![lightened comments](https://i.imgur.com/OQXefYL.png)
 
-**Known issue:** The script doesn't work when you are in any page of YouTube that is not a video and then left-click on a video, but it does work when you middle-click the video link or open it in a new tab. After the video is open in another tab, you can left-click in other videos from there with no problem. This happens because of how YouTube is coded and how userscripts work. I may implement a workaround anyday.
-
 ## License
 
 - You can view the code, download copies to your devices, install, run, use the features and uninstall this software.
