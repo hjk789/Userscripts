@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name            YouTube Similar Comments Hider
-// @version         1.5
+// @version         1.5.5
 // @description     Ensure originality in YouTube's comment section by hiding all sorts of repeated comments, copy-paste comments, repeated quotes from the video and saturated memes.
 // @author          BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
 // @copyright       2021+, BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
@@ -24,13 +24,13 @@ const tolerance = 3
 
 let lightenSimilarComments = false           // If set to true, all similar comments will be dimmed (faded) instead of completely hidden.
 
-const rememberFilteredComments = true        // Whether the script should store locally every filtered comment from past videos to use them in the filtering.
-                                             // This will impact performance over time. If set to false, only the comments in the current video are considered.
+const rememberFilteredComments = true        // Whether the script should store locally every filtered comment from past videos to use them as a second layer of filtering.
+                                             // This impacts performance over time. If set to false, only the comments in the current video are considered.
 //----------------------------------------
 
 
 
-let threshold, tolerance4, tolerance5
+let threshold
 let currentSamples, storedSamples
 let blockedUsers, selectedUser, blockUserContainer
 
@@ -53,8 +53,6 @@ const waitForVideoPage = setInterval(function()
 function constructor()
 {
     threshold = getThreshold(tolerance)
-    tolerance4 = getThreshold(4) + 10
-    tolerance5 = getThreshold(5)
 
     currentSamples = []
     storedSamples = []
@@ -287,6 +285,8 @@ function reprocessComments(thresholdValue = 0)
 
 function processComments(comments, reprocess = false)
 {
+    let isSimilar = false
+
     for (let i=0; i < comments.length; i++)
     {
         const commentBody = comments[i].querySelector("#content-text")
@@ -308,9 +308,9 @@ function processComments(comments, reprocess = false)
             }                                                                                                   // to the menu only when the comment menu is opened. It's then removed whenever any other menu is opened.
         }
 
-        // Standardize the comments for the processing by making them lowercase and without punctuation marks, diacritics, linebreaks
-        // or repeated characters, so that the differences between comments are in the words used instead of the characters.
-        const comment = commentBody.textContent.toLocaleLowerCase().replace(/[.,!\-\n]/g, " ").replace(/ +/g, " ").replace(/(.)\1+/gu, "$1").replace(/(👏|🤩|😁|😍|❤️|👍🏼|💯|👊🏻)+/g, "#").normalize("NFD").replace(/[\u0300-\u036f*"'’“”]/g, "").trim()
+        // Standardize the comments for the processing by making them lowercase and without punctuation marks, diacritics, linebreaks, commonly
+        // used emojis or repeated characters, so that the differences between comments are in the words used instead of the characters.
+        const comment = commentBody.textContent.toLocaleLowerCase().replace(/[.,!\-\n]/g, " ").replace(/ +/g, " ").replace(/(.)\1+|(\W\W)\2+/gu, "$1$2").replace(/(👏|🤩|😁|😂|🤣|😍|❤️|👍🏼|💯|👊🏻)+/g, "#").normalize("NFD").replace(/[\u0300-\u036f*"'’“”]/g, "").trim()
 
         if (!reprocess)             // If it's a reprocess, don't add the comment again to the samples list, otherwise the list would get duplicated.
         {
@@ -342,11 +342,13 @@ function processComments(comments, reprocess = false)
             if (reprocess && i == j)       // ... On the other hand, in the reprocessings, the comparison should stop on equal indexes to not compare to itself.
                 break
 
-            if (calculateAndCheckThreshold(comment, comments[i], currentSamples[j], "This video"))
+            isSimilar = calculateAndCheckThreshold(comment, comments[i], currentSamples[j], "This video")
+
+            if (isSimilar)
                 break
         }
 
-        if (rememberFilteredComments)
+        if (rememberFilteredComments && !isSimilar)             // If the comment is already detected as similar, skip the stored samples.
         {
             for (let j=0; j < storedSamples.length; j++)
             {
@@ -355,7 +357,7 @@ function processComments(comments, reprocess = false)
                 if (location.search.includes(sampleSplit[0]))
                     continue
 
-                if (calculateAndCheckThreshold(comment, comments[i], sampleSplit[1], "Other video", tolerance5))
+                if (calculateAndCheckThreshold(comment, comments[i], sampleSplit[1], "Other video", threshold + 10))
                     break
             }
         }
@@ -363,7 +365,7 @@ function processComments(comments, reprocess = false)
 }
 
 
-function calculateAndCheckThreshold(comment, commentNode, sample, sampleOrigin, pthreshold = threshold)
+function calculateAndCheckThreshold(comment, commentNode, sample, sampleSource, pthreshold = threshold)
 {
     const lengthSum = comment.length + sample.length
 
@@ -372,8 +374,11 @@ function calculateAndCheckThreshold(comment, commentNode, sample, sampleOrigin, 
     if (lengthSum/100 < 1)
         tmpthreshold /= lengthSum/100
 
-    if (tmpthreshold > tolerance5 + 5)              // Don't let the final threshold be too high, otherwise several long similar comments wouldn't be detected.
-        tmpthreshold = tolerance5 + 5
+    if (tmpthreshold > pthreshold * 2 && lengthSum < 300)              // Don't let the final threshold be too high, otherwise several long similar comments wouldn't be detected, but only if they are not too long.
+        tmpthreshold = pthreshold * 2
+
+    if (tmpthreshold > 90)
+        tmpthreshold = 90
 
 
     const similarity1 = calculateSimilarity(sample, comment)
@@ -385,13 +390,12 @@ function calculateAndCheckThreshold(comment, commentNode, sample, sampleOrigin, 
         if (similarity2 >= tmpthreshold)
         {
             console.log("Similarity C->S: "+similarity1.toFixed(2)
-                        +"   ###   Similarity S->C: "+similarity2.toFixed(2)
-                        +"   ###   Threshold: "+tmpthreshold.toFixed(2)
-                        +"   ###   C length: "+comment.length
-                        +"   ###   S length: "+sample.length
-                        +"   ###   Sample origin: "+sampleOrigin
-                        +"   ###   Sample: "+sample
-                        +"   ###   Comment: "+comment)
+                       +"   ###   Similarity S->C: "+similarity2.toFixed(2)
+                       +"   ###   Threshold: "+tmpthreshold.toFixed(2)
+                       +"   ###   C+S length: "+(comment.length+sample.length)
+                       +"   ###   Sample source: "+sampleSource
+                       +"   ###   Sample: "+sample
+                       +"   ###   Comment: "+comment)
 
             if (lightenSimilarComments)
                 commentNode.style.opacity = 0.5
