@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name            YouTube Mobile Repeated Recommendations Hider
 // @description     Hide from YouTube's mobile browser any videos that are recommended more than twice. You can also hide by channel or by partial title.
-// @version         1.13
+// @version         1.15
 // @author          BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
 // @copyright       2020+, BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
 // @homepage        https://github.com/hjk789/Userscripts/tree/master/YouTube-Mobile-Repeated-Recommendations-Hider
@@ -32,14 +32,37 @@ const countRelated = true     // When false, new related videos are ignored in t
 const dimFilteredHomepage = false  // Whether the repeated recommendations in the homepage should get dimmed (partially faded) instead of completely hidden.
 const dimFilteredRelated = true    // Same thing, but for the related videos.
 
-const dimWatchedVideos = false    // Whether the title of videos already watched should be dimmed, to differentiate from the ones you didn't watched yet. The browser itself is responsible for checking whether the
+const dimWatchedVideos = true     // Whether the title of videos already watched should be dimmed, to differentiate from the ones you didn't watched yet. The browser itself is responsible for checking whether the
                                   // link was already visited or not, so if you delete a video from the browser history it will be treated as "not watched", the same if you watch them in a private window (incognito).
 //*******************************
 
 
+
 let channelsToHide, partialTitlesToHide
-let processedVideosList
-let onViewObserver
+let processedVideosList, isHomepage
+let currentPage = location.href, url
+
+const waitForURLchange = setInterval(function()             // Because YouTube is a single-page web app, everything happens in the same page, only changing the URL.
+{                                                           // So the script needs to check when the URL changes so it can be reassigned to the page and be able to work.
+    url = location.href.split("#")[0]               // In the mobile layout, when a menu is open, a hash is added to the URL. This hash need to be ignored to prevent incorrect detections.
+
+    if (url != currentPage)
+    {
+        currentPage = url
+
+        main()
+    }
+}, 500)
+
+
+const onViewObserver = new IntersectionObserver((entries) =>            // An intersection observer is being used so that the recommendations are counted only
+{                                                                       // after the user actually sees them on the screen, instead of when they are loaded.
+    entries.forEach(entry =>
+    {
+        if (entry.isIntersecting)
+            processRecommendation(entry.target, isHomepage)
+    })
+}, {threshold: 1.0})                                            // Only trigger the observer when the recommendation is completely visible.
 
 
 if (dimWatchedVideos)
@@ -51,121 +74,121 @@ if (dimWatchedVideos)
 }
 
 
-GM.getValue("channels").then(function(value)
+getGMsettings()
+
+
+
+async function getGMsettings()
 {
+    let value = await GM.getValue("channels")
+
     if (!value)
     {
-        value = JSON.stringify([])
+        value = "[]"
         GM.setValue("channels", value)
     }
 
     channelsToHide = JSON.parse(value)
 
-    GM.getValue("partialTitles").then(function(value)
+    value = await GM.getValue("partialTitles")
+
+    if (!value)
     {
-        if (!value)
+        value = "[]"
+        GM.setValue("partialTitles", value)
+    }
+
+    partialTitlesToHide = JSON.parse(value)
+
+    processedVideosList = await GM.listValues()                // Get in an array all the items currently in the script's storage. Searching for a value in
+                                                               // an array is much faster and lighter than calling GM.getValue for every recommendation.
+
+    main()
+}
+
+
+function main()
+{
+    isHomepage = !/watch/.test(location.href)
+
+    if (isHomepage)
+    {
+        const waitForRecommendationsContainer = setInterval(function()
         {
-            value = JSON.stringify([])
-            GM.setValue("partialTitles", value)
-        }
+            const recommendationsContainer = document.querySelector("ytm-rich-grid-renderer")?.children[1]
 
-        partialTitlesToHide = JSON.parse(value)
+            if (!recommendationsContainer)
+                return
 
-        GM.listValues().then(function(GmList)                                                          // Get in an array all the items currently in the script's storage. Searching for a value in
-        {                                                                                              // an array is much faster and lighter than calling GM.getValue for every recommendation.
-            processedVideosList = GmList
+            clearInterval(waitForRecommendationsContainer)
 
-            onViewObserver = new IntersectionObserver((entries) =>                  // An intersection observer is being used so that the recommendations are counted only
-            {                                                                       // after the user actually sees them on the screen, instead of when they are loaded.
-                entries.forEach(entry =>
+
+            const firstVideos = recommendationsContainer.querySelectorAll("ytm-rich-item-renderer")    // Because a mutation observer is being used and the script is run after the page is fully
+                                                                                                       // loaded, the observer isn't triggered with the recommendations that appear first.
+            for (let i=0; i < firstVideos.length; i++)                                                 // This does the processing manually to these first ones.
+                processRecommendation(firstVideos[i], isHomepage)
+
+            const loadedRecommendedVideosObserver = new MutationObserver(function(mutations)           // A mutation observer is being used so that all processings happen only
+            {                                                                                          // when actually needed, which is when more recommendations are loaded.
+                for (let i=0; i < mutations.length; i++)
+                    processRecommendation(mutations[i].addedNodes[0], isHomepage)
+            })
+
+            loadedRecommendedVideosObserver.observe(recommendationsContainer, {childList: true})
+
+        }, 100)
+    }
+    else
+    {
+        const waitForRelatedVideosContainer = setInterval(function()
+        {
+            const relatedVideosContainer = document.querySelector("ytm-video-with-context-renderer")?.parentElement
+
+            if (!relatedVideosContainer)
+                return
+
+            clearInterval(waitForRelatedVideosContainer)
+
+
+            const firstRelatedVideos = document.querySelectorAll("ytm-video-with-context-renderer")
+
+            for (let i=0; i < firstRelatedVideos.length; i++)
+                processRecommendation(firstRelatedVideos[i], isHomepage)
+
+            const loadedRelatedVideosObserver = new MutationObserver(function(mutations)           // A mutation observer is being used so that all processings happen only
+            {                                                                                      // when actually needed, which is when more recommendations are loaded.
+                for (let i=0; i < mutations.length; i++)
                 {
-                    if (entry.isIntersecting)
-                        processRecommendation(entry.target, isHomepage)
-                })
-            }, {threshold: 1.0})                                            // Only trigger the observer when the recommendation is completely visible.
+                    const relatedVideo = mutations[i].addedNodes[0]
 
-            const isHomepage = !/watch/.test(location.href)
+                    if (!relatedVideo)  return
 
-            if (isHomepage)
-            {
-                const waitForRecommendationsContainer = setInterval(function()
-                {
-                    const recommendationsContainer = document.querySelector(".rich-grid-renderer-contents")
+                    if (relatedVideo.className == "spinner")
+                        continue
 
-                    if (!recommendationsContainer)
-                        return
+                    processRecommendation(relatedVideo, isHomepage)
+                }
+            })
 
-                    clearInterval(waitForRecommendationsContainer)
+            loadedRelatedVideosObserver.observe(relatedVideosContainer, {childList: true})
 
-
-                    const firstVideos = recommendationsContainer.querySelectorAll("ytm-rich-item-renderer")    // Because a mutation observer is being used and the script is run after the page is fully
-                                                                                                               // loaded, the observer isn't triggered with the recommendations that appear first.
-                    for (let i=0; i < firstVideos.length; i++)                                                 // This does the processing manually to these first ones.
-                        processRecommendation(firstVideos[i], isHomepage)
-
-                    const loadedRecommendedVideosObserver = new MutationObserver(function(mutations)           // A mutation observer is being used so that all processings happen only
-                    {                                                                                          // when actually needed, which is when more recommendations are loaded.
-                        for (let i=0; i < mutations.length; i++)
-                            processRecommendation(mutations[i].addedNodes[0], isHomepage)
-                    })
-
-                    loadedRecommendedVideosObserver.observe(recommendationsContainer, {childList: true})
-
-                }, 100)
-            }
-            else
-            {
-                const waitForRelatedVideosContainer = setInterval(function()
-                {
-                    const relatedVideosContainer = document.querySelector("ytm-video-with-context-renderer").parentElement
-
-                    if (!relatedVideosContainer)
-                        return
-
-                    clearInterval(waitForRelatedVideosContainer)
-
-
-                    const firstRelatedVideos = document.querySelectorAll("ytm-video-with-context-renderer")
-
-                    for (let i=0; i < firstRelatedVideos.length; i++)
-                        processRecommendation(firstRelatedVideos[i], isHomepage)
-
-
-                    const loadedRelatedVideosObserver = new MutationObserver(function(mutations)           // A mutation observer is being used so that all processings happen only
-                    {                                                                                      // when actually needed, which is when more recommendations are loaded.
-                        for (let i=0; i < mutations.length; i++)
-                        {
-                            const relatedVideo = mutations[i].addedNodes[0]
-
-                            if (!relatedVideo)  return
-
-                            if (relatedVideo.className == "spinner")
-                                continue
-
-                            processRecommendation(relatedVideo, isHomepage)
-                        }
-                    })
-
-                    loadedRelatedVideosObserver.observe(relatedVideosContainer, {childList: true})
-
-                }, 500)
-
-            }
-
-        })
-    })
-})
-
+        }, 500)
+    }
+}
 
 
 async function processRecommendation(node, isHomepage)
 {
-    if (!node) return
+    if (!node)  return
 
     const videoTitleEll = node.querySelector("h3")
+
+    if (!videoTitleEll || !videoTitleEll.textContent)
+        return
+
     const videoTitleText = videoTitleEll.textContent.toLowerCase()                      // Convert the title's text to lowercase so that there's no distinction with uppercase letters.
     const videoChannel = videoTitleEll.nextSibling.firstChild.firstChild.textContent
-    const videoUrl = videoTitleEll.parentElement.href
+    const videoUrl = videoTitleEll.parentElement.href.split("&")[0]
     const videoMenuBtn = node.querySelector("ytm-menu")
     const timeLabelEll = node.querySelector("ytm-thumbnail-overlay-time-status-renderer")
     const isNotPremiere = timeLabelEll ? /\d/.test(timeLabelEll.textContent) : true             // Check whether the video is still to be premiered. The same element that shows the video time
@@ -260,6 +283,7 @@ async function processRecommendation(node, isHomepage)
             if (isNotPremiere || filterPremiere)
             {
                 GM.setValue("hide::"+videoUrl,"")
+                processedVideosList.push("hide::"+videoUrl)
                 return
             }
 
@@ -285,6 +309,7 @@ async function processRecommendation(node, isHomepage)
 
                 GM.deleteValue(videoUrl)
                 GM.setValue("hide::"+videoUrl,"")
+                processedVideosList.push("hide::"+videoUrl)
                 return
             }
 

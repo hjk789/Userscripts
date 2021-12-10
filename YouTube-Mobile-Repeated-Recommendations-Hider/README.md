@@ -20,8 +20,6 @@ Make sure to change the settings in the script to your preference.
 
 This userscript was tested and works in Kiwi Browser with Tampermonkey on Android. Other mobile browsers that support installing script-managers may also work, although not tested.
 
-**Known issue:** The script doesn't work when you open a video on the same tab (i.e, when you just touch the recommendation), but it does work when you open it in a new tab. This happens because of how YouTube is coded and how userscripts work. I may implement a workaround anyday.
-
 ## License
 - You can view the code, download copies to your devices, install, run, use the features and uninstall this software.
 - Feel free to refer to this userscript, just make sure to include a link to its [GitHub homepage](https://github.com/hjk789/Userscripts/tree/master/YouTube-Mobile-Repeated-Recommendations-Hider) or to it's [GreasyFork page](https://greasyfork.org/scripts/419666-youtube-mobile-repeated-recommendations-hider).
