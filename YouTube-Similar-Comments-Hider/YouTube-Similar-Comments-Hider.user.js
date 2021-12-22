@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name            YouTube Similar Comments Hider
-// @version         1.5.5
+// @version         1.5.8
 // @description     Ensure originality in YouTube's comment section by hiding all sorts of repeated comments, copy-paste comments, repeated quotes from the video and saturated memes.
 // @author          BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
 // @copyright       2021+, BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
@@ -33,19 +33,23 @@ const rememberFilteredComments = true        // Whether the script should store 
 let threshold
 let currentSamples, storedSamples
 let blockedUsers, selectedUser, blockUserContainer
+let currentPage, currentVideoId
+let loadedCommentsObserver
 
-
-const waitForVideoPage = setInterval(function()
-{
-    if (!location.href.includes("watch"))
+const waitForURLchange = setInterval(function()             // Because YouTube is a single-page web app, everything happens in the same page, only changing the URL.
+{                                                           // So the script needs to check when the URL changes so it can be reassigned to the page and be able to work.
+    if (location.href == currentPage)
         return
 
-    clearInterval(waitForVideoPage)
+    currentPage = location.href
 
+    if (!location.href.includes("watch"))
+        return
 
     constructor()
 
 }, 500)
+
 
 
 
@@ -57,7 +61,9 @@ function constructor()
     currentSamples = []
     storedSamples = []
 
-    blockedUsers = selectedUser = blockUserContainer = undefined
+    blockedUsers = selectedUser = undefined
+
+    currentVideoId = cleanVideoUrl(location.href).split("=")[1]
 
 
     if (rememberFilteredComments)
@@ -98,21 +104,21 @@ async function main()
         blockedUsers = JSON.parse(value)
 
 
-
-
-
         /* Attach a mutation observer to the comments section to detect when more comments are loaded, and process them */
         {
-            const loadedCommentsObserver = new MutationObserver(function(mutations)
+            if (!loadedCommentsObserver)
             {
-                for (let i=0; i < mutations.length; i++)
+                loadedCommentsObserver = new MutationObserver(function(mutations)
                 {
-                    if (!!mutations[i].addedNodes)
-                        processComments(mutations[i].addedNodes)
-                }
-            })
+                    for (let i=0; i < mutations.length; i++)
+                    {
+                        if (!!mutations[i].addedNodes)
+                            processComments(mutations[i].addedNodes)
+                    }
+                })
 
-            loadedCommentsObserver.observe(commentSection, {childList: true})
+                loadedCommentsObserver.observe(commentSection, {childList: true})
+            }
         }
 
 
@@ -122,6 +128,10 @@ async function main()
                 return
 
             clearInterval(waitForCommentSectionHeader)
+
+
+            if (document.getElementById("toleranceMenu"))
+                return
 
 
             /* Create the hover styles for the menu items */
@@ -158,47 +168,46 @@ async function main()
                 document.getElementById("sort-menu").parentElement.appendChild(toleranceMenuContainer)
 
                 document.body.onclick = function() { document.getElementById("toleranceMenu").lastChild.style.visibility = "hidden" }               // Make the dropdown be dismissed when clicked outside of it.
-            }
 
 
-            /* Create the "Hide comments" checkbox */
-            {
-                const hideCommentsCheckbox = document.createElement("input")
-                hideCommentsCheckbox.id = "hideComments"
-                hideCommentsCheckbox.type = "checkbox"
-                hideCommentsCheckbox.style = "margin-top: 10px; margin-bottom: 10px;"
-                hideCommentsCheckbox.checked = !lightenSimilarComments
-                hideCommentsCheckbox.onchange = function()
+                /* Create the "Hide comments" checkbox */
                 {
-                    lightenSimilarComments = !this.checked
-
-                    if (this.checked)
+                    const hideCommentsCheckbox = document.createElement("input")
+                    hideCommentsCheckbox.id = "hideComments"
+                    hideCommentsCheckbox.type = "checkbox"
+                    hideCommentsCheckbox.style = "margin-top: 10px; margin-bottom: 10px;"
+                    hideCommentsCheckbox.checked = !lightenSimilarComments
+                    hideCommentsCheckbox.onchange = function()
                     {
-                        const comments = document.getElementById("comments").querySelectorAll("ytd-comment-thread-renderer[style^='opacity']")
+                        lightenSimilarComments = !this.checked
 
-                        for (let i=0; i < comments.length; i++)
-                            comments[i].style = "display: none;"
+                        if (this.checked)
+                        {
+                            const comments = document.getElementById("comments").querySelectorAll("ytd-comment-thread-renderer[style^='opacity']")
+
+                            for (let i=0; i < comments.length; i++)
+                                comments[i].style = "display: none;"
+                        }
+                        else
+                        {
+                            const comments = document.getElementById("comments").querySelectorAll("ytd-comment-thread-renderer[style^='display']")
+
+                            for (let i=0; i < comments.length; i++)
+                                comments[i].style = "opacity: 0.5;"
+                        }
+
                     }
-                    else
-                    {
-                        const comments = document.getElementById("comments").querySelectorAll("ytd-comment-thread-renderer[style^='display']")
 
-                        for (let i=0; i < comments.length; i++)
-                            comments[i].style = "opacity: 0.5;"
-                    }
+                    const hideCommentsLabel = document.createElement("label")
+                    hideCommentsLabel.for = "hideComments"
+                    hideCommentsLabel.style = "padding: 8px 19px; border-top: 1px solid; user-select: none;"
+                    hideCommentsLabel.innerHTML = "Hide comments"
 
+                    hideCommentsLabel.insertBefore(hideCommentsCheckbox, hideCommentsLabel.firstChild)
+
+                    dropdownItemsContainer.appendChild(hideCommentsLabel)
                 }
-
-                const hideCommentsLabel = document.createElement("label")
-                hideCommentsLabel.for = "hideComments"
-                hideCommentsLabel.style = "padding: 8px 19px; border-top: 1px solid; user-select: none;"
-                hideCommentsLabel.innerHTML = "Hide comments"
-
-                hideCommentsLabel.insertBefore(hideCommentsCheckbox, hideCommentsLabel.firstChild)
-
-                dropdownItemsContainer.appendChild(hideCommentsLabel)
             }
-
 
             /* Create the "Block this user" option in the comment's side-menu */
             {
@@ -224,11 +233,15 @@ async function main()
                 blockUserContainer.insertBefore(blockUserIcon, blockUserContainer.firstChild)
 
                 const commentMenuButton = commentSection.querySelector("ytd-menu-renderer yt-icon")
-                commentMenuButton.click()
-                commentMenuButton.click()      // The comment menu doesn't exist in the HTML before it's clicked for the first time. This forces it to be created and dismisses it immediately.
 
-                const blockUserParent = document.querySelector("ytd-menu-popup-renderer")
-                blockUserParent.style = "max-height: max-content !important; max-width: max-content !important;"                // Change the max width and height so that the new item fits in the menu.
+                if (commentMenuButton)
+                {
+                    commentMenuButton.click()
+                    commentMenuButton.click()      // The comment menu doesn't exist in the HTML before it's clicked for the first time. This forces it to be created and dismisses it immediately.
+
+                    const blockUserParent = document.querySelector("ytd-menu-popup-renderer")
+                    blockUserParent.style = "max-height: max-content !important; max-width: max-content !important;"                // Change the max width and height so that the new item fits in the menu.
+                }
             }
 
             document.body.onclick = function()
@@ -310,21 +323,20 @@ function processComments(comments, reprocess = false)
 
         // Standardize the comments for the processing by making them lowercase and without punctuation marks, diacritics, linebreaks, commonly
         // used emojis or repeated characters, so that the differences between comments are in the words used instead of the characters.
-        const comment = commentBody.textContent.toLocaleLowerCase().replace(/[.,!\-\n]/g, " ").replace(/ +/g, " ").replace(/(.)\1+|(\W\W)\2+/gu, "$1$2").replace(/(👏|🤩|😁|😂|🤣|😍|❤️|👍🏼|💯|👊🏻)+/g, "#").normalize("NFD").replace(/[\u0300-\u036f*"'’“”]/g, "").trim()
+        const comment = commentBody.textContent.toLocaleLowerCase().replace(/[.,!\-\n\r]/g, " ").replace(/ +/g, " ").replace(/(.)\1+|(\W\W)\2+/gu, "$1$2").replace(/(👏|🤩|😁|😂|🤣|😍|❤️|👍🏼|💯|👊🏻)+/g, "#").normalize("NFD").replace(/[\u0300-\u036f*"'’“”]/g, "").trim()
 
         if (!reprocess)             // If it's a reprocess, don't add the comment again to the samples list, otherwise the list would get duplicated.
         {
             currentSamples.push(comment)
 
             if (rememberFilteredComments)
-                GM.setValue(location.search.split("&")[0] +"::"+ comment, "")
+                GM.setValue(currentVideoId +"::"+ comment, "")
         }
-        else
-        {
-            // Reset the style of the filtered comments
-            if (comments[i].style.opacity || comments[i].style.display)
-                comments[i].removeAttribute("style")
-        }
+
+        // Reset the style of the comments, if any.
+        if (comments[i].style.opacity || comments[i].style.display)
+            comments[i].removeAttribute("style")
+
 
         if (blockedUsers.includes(comments[i].querySelector("#author-text").href))              // The check need to be made *after* the push, otherwise the comments list and the samples list get out of sync.
         {
@@ -335,7 +347,7 @@ function processComments(comments, reprocess = false)
         let n = currentSamples.length
         if (!reprocess)  n--                // The first time the processing is done, the comment should not be compared to the sample added last, as it would be comparing to itself ...
 
-        /* Compare the comment with the previous ones */
+        /* Compare the comment with the previous ones of this video */
 
         for (let j=0; j < n; j++)
         {
@@ -348,13 +360,15 @@ function processComments(comments, reprocess = false)
                 break
         }
 
+        /* Compare the comment with the stored ones */
+
         if (rememberFilteredComments && !isSimilar)             // If the comment is already detected as similar, skip the stored samples.
         {
             for (let j=0; j < storedSamples.length; j++)
             {
                 const sampleSplit = storedSamples[j].split("::")
 
-                if (location.search.includes(sampleSplit[0]))
+                if (location.search.includes(sampleSplit[0]))             // If the sample came from the same video, skip it, otherwise each comment would be compared to itself.
                     continue
 
                 if (calculateAndCheckThreshold(comment, comments[i], sampleSplit[1], "Other video", threshold + 10))
@@ -363,7 +377,6 @@ function processComments(comments, reprocess = false)
         }
     }
 }
-
 
 function calculateAndCheckThreshold(comment, commentNode, sample, sampleSource, pthreshold = threshold)
 {
@@ -374,7 +387,7 @@ function calculateAndCheckThreshold(comment, commentNode, sample, sampleSource, 
     if (lengthSum/100 < 1)
         tmpthreshold /= lengthSum/100
 
-    if (tmpthreshold > pthreshold * 2 && lengthSum < 300)              // Don't let the final threshold be too high, otherwise several long similar comments wouldn't be detected, but only if they are not too long.
+    if (tmpthreshold > pthreshold * 2 && lengthSum < 200)              // Don't let the final threshold be too high, otherwise several long similar comments wouldn't be detected, but only if they are not too long.
         tmpthreshold = pthreshold * 2
 
     if (tmpthreshold > 90)
@@ -418,12 +431,12 @@ function calculateSimilarity(a, b)
 
         if (a.includes(string))                     // ... and check if the resulting string can be found in the sample comment, and if so, continue appending the characters.
         {
-            if (string.length > 2)                  // When the sample comment contains the string, when it's at least 3 characters long ...
+            if (string.length > 3)                  // When the sample comment contains the string, when it's at least 4 characters long ...
             {
                 hits++                              // ... start counting the number of hits for each character.
 
-                if (string.length == 3)             // If the string has three characters, recover the two uncounted hits.
-                    hits += 2
+                if (string.length == 4)             // If the string has three characters, recover the two uncounted hits.
+                    hits += 3
             }
         }
         else string = ""                            // If the comment doesn't contain the string, clear the string and start building it again with the rest of the characters.
@@ -432,4 +445,16 @@ function calculateSimilarity(a, b)
     const similarity = hits/b.length*100            // Get the proportion of hits out of the total of characters of the comment.
 
     return similarity
+}
+
+function cleanVideoUrl(fullUrl)
+{
+    const urlSplit = fullUrl.split("?")                 // Separate the page path from the parameters.
+    const paramsSplit = urlSplit[1].split("&")          // Separate each parameter.
+
+    for (let i=0; i < paramsSplit.length; i++)
+    {
+        if (paramsSplit[i].includes("v="))              // Get the video's id.
+            return urlSplit[0]+"?"+paramsSplit[i]       // Return the cleaned video URL.
+    }
 }
