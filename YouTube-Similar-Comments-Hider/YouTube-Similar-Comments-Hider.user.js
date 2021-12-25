@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name            YouTube Similar Comments Hider
-// @version         1.5.8
+// @version         1.7.0
 // @description     Ensure originality in YouTube's comment section by hiding all sorts of repeated comments, copy-paste comments, repeated quotes from the video and saturated memes.
 // @author          BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
 // @copyright       2021+, BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
@@ -21,6 +21,9 @@ const tolerance = 3
 // 3 - Very similar: A moderate detection with few to no false positives, but several comments that are similar, but worded differently, won't be detected.
 // 4 - Mostly similar: Detects comments that are close variations of another, such as several comments repeating the same quote from the video with few differences.
 // 5 - Almost identical: Detects only comments that are mostly copy-pasted with little to no variation.
+// 6 - Custom (advanced): Use a specific minimum threshold, in the 2-90 range. Set the customThreshold variable below to the value you want.
+
+const customThreshold = 20
 
 let lightenSimilarComments = false           // If set to true, all similar comments will be dimmed (faded) instead of completely hidden.
 
@@ -79,7 +82,6 @@ function constructor()
     }
     else main()
 }
-
 
 async function main()
 {
@@ -160,6 +162,7 @@ async function main()
                 createToleranceDropdownItem("Very similar", 3, dropdownItemsContainer, "A moderate detection with few to no false positives, but several comments that are similar, but worded differently, won't be detected.")
                 createToleranceDropdownItem("Mostly similar", 4, dropdownItemsContainer, "Detects comments that are close variations of another.")
                 createToleranceDropdownItem("Almost indentical", 5, dropdownItemsContainer, "Detects only comments that are mostly copy-pasted with little to no variation.")
+                createToleranceDropdownItem("Custom (advanced)", 6, dropdownItemsContainer, "Use a specific minimum threshold, in the 2-90 range.")
 
                 dropdownContainer.appendChild(dropdownItemsContainer)
 
@@ -252,17 +255,16 @@ async function main()
                 if (toleranceMenu)  toleranceMenu.firstElementChild.style.visibility = "hidden"              // Dismiss the Filter Tolerance menu when clicked outside.
             }
 
-
         }, 100)
 
     }, 100)
 }
 
-
 function getThreshold(tolerance)
 {
     // Return the minimum threshold to treat the comment as similar, depending on the tolerance level. The final threshold can be higher than that, but not lower.
-    return tolerance == 1 ? 14 : tolerance == 2 ? 24 : tolerance == 3 ? 35 : tolerance == 4 ? 45 : 65
+    return tolerance == 1 ? 14 : tolerance == 2 ? 24 : tolerance == 3 ? 35 : tolerance == 4 ? 45 : tolerance == 5 ? 65 :
+        customThreshold < 2 ? 2 : customThreshold > 90 ? 90 : customThreshold
 }
 
 function createToleranceDropdownItem(text, toleranceLevel, container, title)
@@ -321,9 +323,9 @@ function processComments(comments, reprocess = false)
             }                                                                                                   // to the menu only when the comment menu is opened. It's then removed whenever any other menu is opened.
         }
 
-        // Standardize the comments for the processing by making them lowercase and without punctuation marks, diacritics, linebreaks, commonly
-        // used emojis or repeated characters, so that the differences between comments are in the words used instead of the characters.
-        const comment = commentBody.textContent.toLocaleLowerCase().replace(/[.,!\-\n\r]/g, " ").replace(/ +/g, " ").replace(/(.)\1+|(\W\W)\2+/gu, "$1$2").replace(/(👏|🤩|😁|😂|🤣|😍|❤️|👍🏼|💯|👊🏻)+/g, "#").normalize("NFD").replace(/[\u0300-\u036f*"'’“”]/g, "").trim()
+        // Standardize the comments for the processing by making them lowercase and without punctuation marks, diacritics, linebreaks, commonly used emojis or repeated characters,
+        // so that the differences between comments are in the words used instead of the characters. Also long comments are trimmed to 400 characters, to make the processing lighter.
+        const comment = commentBody.textContent.toLocaleLowerCase().replace(/[.,!\-\s]+/g, " ").replace(/(.)\1+|(\W\W)\2+/gu, "$1$2").replace(/(👏|🤩|😁|😂|🤣|😍|❤️|👍🏼|💯|👊🏻)+/g, "#").normalize("NFD").replace(/[\u0300-\u036f*"'’“”]/g, "").substring(0,400).trim()
 
         if (!reprocess)             // If it's a reprocess, don't add the comment again to the samples list, otherwise the list would get duplicated.
         {
@@ -387,9 +389,6 @@ function calculateAndCheckThreshold(comment, commentNode, sample, sampleSource, 
     if (lengthSum/100 < 1)
         tmpthreshold /= lengthSum/100
 
-    if (tmpthreshold > pthreshold * 2 && lengthSum < 200)              // Don't let the final threshold be too high, otherwise several long similar comments wouldn't be detected, but only if they are not too long.
-        tmpthreshold = pthreshold * 2
-
     if (tmpthreshold > 90)
         tmpthreshold = 90
 
@@ -424,25 +423,27 @@ function calculateSimilarity(a, b)
 {
     let hits = 0
     let string = ""
+    const length = b.length > 400 ? 400 : b.length      // Calculate only the first 400 characters of the comments, otherwise comments that are exaggeratedly long can cause hangs and slow down the processing.
+                                                        // Also, long comments are practically never similar, and when they do, they are identical, so 400 chacters are more than enough to detect these cases.
 
-    for (let i=0; i < b.length; i++)                // For each character of the comment ...
+    for (let i=0; i < length; i++)                      // For each character of the comment ...
     {
-        string += b[i]                              // ... append it to a string ...
+        string += b[i]                                  // ... append it to a string ...
 
-        if (a.includes(string))                     // ... and check if the resulting string can be found in the sample comment, and if so, continue appending the characters.
+        if (a.includes(string))                         // ... and check if the resulting string can be found in the sample comment, and if so, continue appending the characters.
         {
-            if (string.length > 3)                  // When the sample comment contains the string, when it's at least 4 characters long ...
+            if (string.length > 3)                      // When the sample comment contains the string, when it's at least 4 characters long ...
             {
-                hits++                              // ... start counting the number of hits for each character.
+                hits++                                  // ... start counting the number of hits for each character.
 
-                if (string.length == 4)             // If the string has three characters, recover the two uncounted hits.
+                if (string.length == 4)                 // If the string has three characters, recover the two uncounted hits.
                     hits += 3
             }
         }
-        else string = ""                            // If the comment doesn't contain the string, clear the string and start building it again with the rest of the characters.
+        else string = ""                                // If the comment doesn't contain the string, clear the string and start building it again with the rest of the characters.
     }
 
-    const similarity = hits/b.length*100            // Get the proportion of hits out of the total of characters of the comment.
+    const similarity = hits/length*100                  // Get the proportion of hits out of the total of characters of the comment.
 
     return similarity
 }
