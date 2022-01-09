@@ -12,9 +12,15 @@ In case you want to make it hide after only one time, so that only brand new rec
 
 If you want to know what videos are repeated but don't want to hide them, you have the option of dimming them.
 
+![dimmed videos](https://i.imgur.com/PE3qCRB.png)
+
 Optionally you can also hide all videos of a specific channel, or videos that contain a specific text in the title. To do that, you just need to click on the recommended video's menu (the three dots button) and choose the option you want.
 
-![Hide buttons](https://i.imgur.com/lCHgtDe.png)
+![Hide buttons mobile](https://i.imgur.com/lCHgtDe.png) ![Hide buttons desktop](https://i.imgur.com/HlO36t2.png)
+
+You also have the option of marking videos you already watched:
+
+![watched videos](https://i.imgur.com/1Qdkuf8.png)
 
 Make sure to change the settings in the script to your preference.
 
