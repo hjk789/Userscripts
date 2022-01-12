@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name            YouTube Repeated Recommendations Hider
 // @description     Hide any videos that are recommended more than twice. You can also hide by channel or by partial title. Works on both YouTube's desktop and mobile layouts.
-// @version         2.0.0
+// @version         2.1.0
 // @author          BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
 // @copyright       2020+, BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
 // @homepage        https://github.com/hjk789/Userscripts/tree/master/YouTube-Repeated-Recommendations-Hider
@@ -17,24 +17,29 @@
 
 //********** SETTINGS ***********
 
-const maxRepetitions = 2           // The maximum number of times that the same recommended video is allowed to appear
-                                   // before starting to get hidden. Set this to 1 if you want one-time recommendations.
+const maxRepetitions = 2              // The maximum number of times that the same recommended video is allowed to appear
+                                      // before starting to get hidden. Set this to 1 if you want one-time recommendations.
 
-const filterRelated = true         // Whether the related videos (the ones below/beside the video you are watching) should also be filtered. Set this to false if you want to keep them untouched.
+const filterRelated = true            // Whether the related videos (the ones below/beside the video you are watching) should also be filtered. Set this to false if you want to keep them untouched.
 
-const countRelated = true          // When false, new related videos are ignored in the countings and are allowed to appear any number of times, as long as they don't
-                                   // appear in the homepage recommendations. If set to true, the related videos are counted even if they never appeared in the homepage.
+const countRelated = true             // When false, new related videos are ignored in the countings and are allowed to appear any number of times, as long as they don't
+                                      // appear in the homepage recommendations. If set to true, the related videos are counted even if they never appeared in the homepage.
 
-const filterPremiere = false       // Whether to include in the filtering repeated videos yet to be premiered. If set to false, these recommendations won't get "remembered"
-                                   // until the video is finally released, then it will start counting as any other video. Set this to true if you want to hide them anyway.
+const filterPremiere = false          // Whether to include in the filtering repeated videos yet to be premiered. If set to false, these recommendations won't get "remembered"
+                                      // until the video is finally released, then it will start counting as any other video. Set this to true if you want to hide them anyway.
 
-const filterLives = true           // Same as above but for ongoing live streams. If set to false, the recommended live stream will start to be counted only after the stream ends and becomes a whole video.
+const filterLives = true              // Same as above but for ongoing live streams. If set to false, the recommended live stream will start to be counted only after the stream ends and becomes a whole video.
 
-const dimFilteredHomepage = false  // Whether the repeated recommendations in the homepage should get dimmed (partially faded) instead of completely hidden.
-const dimFilteredRelated = true    // Same thing, but for the related videos.
+const dimFilteredHomepage = false     // Whether the repeated recommendations in the homepage should get dimmed (partially faded) instead of completely hidden.
+const dimFilteredRelated = false      // Same thing, but for the related videos.
 
-const dimWatchedVideos = true      // Whether the title of videos already watched should be dimmed, to differentiate from the ones you didn't watched yet. The browser itself is responsible for checking whether the
-                                   // link was already visited or not, so if you delete a video from the browser history it will be treated as "not watched", the same if you watch them in a private window (incognito).
+const dimWatchedVideos = true         // Whether the title of videos already watched should be dimmed, to differentiate from the ones you didn't watched yet. The browser itself is responsible for checking whether the
+                                      // link was already visited or not, so if you delete a video from the browser history it will be treated as "not watched", the same if you watch them in a private window (incognito).
+
+const alwaysHideMixes = true          // Whether mixes should always be hidden independently of how many times it appeared. If true, mixes will never be visible again. If set to false, they will be treated just like other videos.
+const alwaysHidePlaylists = true      // Same as above but for recommended playlists. Note that playlists here refers to a list of videos, not single compilation videos.
+const alwaysHideOngoingLives = false  // Same as above but for recommended ongoing (active) live streams.
+const alwaysHideMovies = true         // Same as above but for recommended paid movies from YouTube Movies.
 
 //*******************************
 
@@ -45,10 +50,11 @@ let hideChannelButton, hidePartialTitleButton
 let processedVideosList, isHomepage
 let currentPage = location.href, url
 const isMobile = !/www/.test(location.hostname)
+let tabActivated = false
 
-
-const waitForURLchange = setInterval(function()             // Because YouTube is a single-page web app, everything happens in the same page, only changing the URL.
-{                                                           // So the script needs to check when the URL changes so it can be reassigned to the page and be able to work.
+                                                          // Because YouTube is a single-page web app, everything happens in the same page, only changing the URL.
+const waitForURLchange = setInterval(function()           // So the script needs to check when the URL changes so it can be reassigned to the page and be able to work.
+{
     url = location.href.split("#")[0]               // In the mobile layout, when a menu is open, a hash is added to the URL. This hash need to be ignored to prevent incorrect detections.
 
     if (url != currentPage)
@@ -63,15 +69,26 @@ const waitForURLchange = setInterval(function()             // Because YouTube i
 
 }, 500)
 
+                                                                              // An intersection observer is being used so that the recommendations are counted only
+const onViewObserver = new IntersectionObserver(async (entries) =>            // when the user actually sees them on the screen, instead of when they are loaded.
+{
+    if (!tabActivated)              // Update the stored values whenever the video tab is active. Otherwise, the stored values get out of sync
+    {                               // with the other videos that the user opened, and the recommendations end up being counted incorrectly.
+        await getGMsettings()
 
-const onViewObserver = new IntersectionObserver((entries) =>            // An intersection observer is being used so that the recommendations are counted only
-{                                                                       // when the user actually sees them on the screen, instead of when they are loaded.
+        tabActivated = true
+    }
+
     entries.forEach(entry =>
     {
         if (entry.isIntersecting)
-            processRecommendation(entry.target, isHomepage)
+            processRecommendation(entry.target)
     })
+
 }, {threshold: 1.0})                                            // Only trigger the observer when the recommendation is completely visible.
+
+
+document.body.onblur = function() { tabActivated = false }
 
 
 if (dimWatchedVideos)
@@ -91,11 +108,13 @@ if (!isMobile)
 }
 
 
-getGMsettings()
+
+getGMsettings(main)
 
 
 
-async function getGMsettings()
+
+async function getGMsettings(then)
 {
     let value = await GM.getValue("channels")
 
@@ -114,8 +133,7 @@ async function getGMsettings()
 
     processedVideosList = await GM.listValues()             // Get in an array all the items currently in the script's storage. Searching for a value in
                                                             // an array is much faster and lighter than calling GM.getValue for every recommendation.
-
-    main()
+    if (then)  then()
 }
 
 
@@ -343,6 +361,19 @@ async function processRecommendation(node)
     else if (node.querySelector(".badge-style-type-live-now"))                                      // In the homepage of the desktop layout, the live indicator is in a different element.
         videoType = "LIVE"
 
+
+    if (alwaysHideMixes && node.tagName == (isMobile ? "YTM-RADIO-RENDERER" : "YTD-COMPACT-RADIO-RENDERER")
+        || alwaysHideOngoingLives && videoType == "LIVE"
+        || alwaysHidePlaylists && node.tagName == "YT" + (isMobile ? "M" : "D") + "-COMPACT-PLAYLIST-RENDERER"
+        || alwaysHideMovies && node.tagName == "YTD-COMPACT-MOVIE-RENDERER")
+    {
+        node.style.display = "none"
+        node.classList.add("processed")
+
+        return
+    }
+
+
     let videoChannel, videoUrl
 
     if (isMobile)
@@ -380,7 +411,7 @@ async function processRecommendation(node)
         if (!isHomepage && !filterRelated)
             return
 
-        hideOrDimm(node, isHomepage)
+        hideOrDimm(node)
 
         node.classList.add("processed")
     }
@@ -433,7 +464,7 @@ async function processRecommendation(node)
                 if (!isHomepage && !filterRelated)
                     return
 
-                hideOrDimm(node, isHomepage)
+                hideOrDimm(node)
 
                 GM.deleteValue(videoUrl)
                 GM.setValue("hide::"+videoUrl,"")
