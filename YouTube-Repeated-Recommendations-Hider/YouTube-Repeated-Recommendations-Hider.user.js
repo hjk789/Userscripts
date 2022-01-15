@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name            YouTube Repeated Recommendations Hider
 // @description     Hide any videos that are recommended more than twice. You can also hide by channel or by partial title. Works on both YouTube's desktop and mobile layouts.
-// @version         2.1.5
+// @version         2.1.6
 // @author          BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
 // @copyright       2020+, BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
 // @homepage        https://github.com/hjk789/Userscripts/tree/master/YouTube-Repeated-Recommendations-Hider
@@ -169,7 +169,8 @@ function main()
 
 
 
-            await addRecommendationMenuItems()
+            if (!isMobile)
+                await addRecommendationMenuItems()
 
             const videosSelector = isMobile ? "ytm-rich-item-renderer" : "ytd-rich-item-renderer"
 
@@ -295,7 +296,8 @@ function main()
 
 
 
-            await addRecommendationMenuItems()
+            if (!isMobile)
+                await addRecommendationMenuItems()
 
 
             relatedVideosContainer = relatedVideosContainer.parentElement
