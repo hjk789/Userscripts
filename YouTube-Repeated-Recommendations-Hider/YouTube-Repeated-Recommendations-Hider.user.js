@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name            YouTube Repeated Recommendations Hider
 // @description     Hide any videos that are recommended more than twice. You can also hide by channel or by partial title. Works on both YouTube's desktop and mobile layouts.
-// @version         2.1.0
+// @version         2.1.5
 // @author          BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
 // @copyright       2020+, BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
 // @homepage        https://github.com/hjk789/Userscripts/tree/master/YouTube-Repeated-Recommendations-Hider
@@ -20,7 +20,7 @@
 const maxRepetitions = 2              // The maximum number of times that the same recommended video is allowed to appear
                                       // before starting to get hidden. Set this to 1 if you want one-time recommendations.
 
-const filterRelated = true            // Whether the related videos (the ones below/beside the video you are watching) should also be filtered. Set this to false if you want to keep them untouched.
+const filterRelated = true            // Whether the repeated related videos (the ones below/beside the video you are watching) should also be filtered. Set this to false if you want to keep them untouched.
 
 const countRelated = true             // When false, new related videos are ignored in the countings and are allowed to appear any number of times, as long as they don't
                                       // appear in the homepage recommendations. If set to true, the related videos are counted even if they never appeared in the homepage.
@@ -50,7 +50,7 @@ let hideChannelButton, hidePartialTitleButton
 let processedVideosList, isHomepage
 let currentPage = location.href, url
 const isMobile = !/www/.test(location.hostname)
-let tabActivated = false
+let isTabActivated = false, isMenuReady = false
 
                                                           // Because YouTube is a single-page web app, everything happens in the same page, only changing the URL.
 const waitForURLchange = setInterval(function()           // So the script needs to check when the URL changes so it can be reassigned to the page and be able to work.
@@ -72,11 +72,11 @@ const waitForURLchange = setInterval(function()           // So the script needs
                                                                               // An intersection observer is being used so that the recommendations are counted only
 const onViewObserver = new IntersectionObserver(async (entries) =>            // when the user actually sees them on the screen, instead of when they are loaded.
 {
-    if (!tabActivated)              // Update the stored values whenever the video tab is active. Otherwise, the stored values get out of sync
+    if (!isTabActivated)              // Update the stored values whenever the video tab is active. Otherwise, the stored values get out of sync
     {                               // with the other videos that the user opened, and the recommendations end up being counted incorrectly.
         await getGMsettings()
 
-        tabActivated = true
+        isTabActivated = true
     }
 
     entries.forEach(entry =>
@@ -88,7 +88,7 @@ const onViewObserver = new IntersectionObserver(async (entries) =>            //
 }, {threshold: 1.0})                                            // Only trigger the observer when the recommendation is completely visible.
 
 
-document.body.onblur = function() { tabActivated = false }
+document.body.onblur = function() { isTabActivated = false }
 
 
 if (dimWatchedVideos)
@@ -143,7 +143,7 @@ function main()
 
     if (isHomepage)
     {
-        const waitForRecommendationsContainer = setInterval(function()
+        const waitForRecommendationsContainer = setInterval(async function()
         {
             let recommendationsContainer
 
@@ -168,7 +168,8 @@ function main()
             clearInterval(waitForRecommendationsContainer)
 
 
-            recommendationsContainer.style.marginLeft = "100px"
+
+            await addRecommendationMenuItems()
 
             const videosSelector = isMobile ? "ytm-rich-item-renderer" : "ytd-rich-item-renderer"
 
@@ -178,16 +179,32 @@ function main()
                 processRecommendation(firstVideos[i])
 
 
+            const swappedRecommendationsObserver = new MutationObserver(function(mutations)            // When the desktop homepage is loaded and the user scrolls down a little, it may happen that YouTube reorganizes the recommendations. When this happens, the
+            {                                                                                          // reference of the elements are mostly the same, but the actual content is swapped with another one, and thus requiring to reprocess these recommendations.
+                for (let i=0; i < mutations.length; i++)
+                {
+                    if (mutations[i].removedNodes || mutations[i].addedNodes)               // YouTube never remove recommendations, and when that happens, is because it's reorganizing them.
+                    {
+                        const recommendations = mutations[i].target.children
+
+                        for (let j=0; j < recommendations.length; j++)
+                            processRecommendation(recommendations[j], true)
+                    }
+                }
+            })
+
+
             if (!isMobile)                                                                             // Also, in the desktop layout, the first few recommendations require some layout tweaks to display them correctly.
             {
+                recommendationsContainer.style.marginLeft = "100px"
+
                 const firstRows = recommendationsContainer.children
 
                 for (let i=0; i < firstRows.length; i++)
                 {
-                    if (firstRows[i].clientHeight == 0)                     // Only apply the tweaks if there's any recommendation visible in the row.
-                        continue
-
                     const row = firstRows[i]
+
+                    swappedRecommendationsObserver.observe(row.firstElementChild, {childList: true})
 
                     row.style.justifyContent = "left"                       // These two lines remove an extra space on the left side, to make them align correctly with the other ones.
                     row.firstElementChild.style.margin = "0px"
@@ -212,7 +229,7 @@ function main()
                         {
                             const node = mutations[i].addedNodes[j]
 
-                            if (node.tagName == "YTM-RICH-SECTION-RENDERER")                // The Covid-19 info and Breaking News section is loaded as a container of videos which need to be processed separatedly.
+                            if (node.tagName == "YTM-RICH-SECTION-RENDERER")                // The Covid-19 info and Top News section is loaded as a container of videos which need to be processed separatedly.
                             {
                                 const sectionVideos = node.querySelectorAll(videosSelector)
 
@@ -231,9 +248,8 @@ function main()
                     for (let i=0; i < mutations.length; i++)
                     {
                         for (let j=0; j < mutations[i].addedNodes.length; j++)
-                        {
-                            const row = mutations[i].addedNodes[j]                                              // Different from the mobile layout in which the recommendations are displayed as a list, in the desktop
-                                                                                                                // layout the recommendations are displayed in containers that each serve as a row with 4-5 videos.
+                        {                                                                                       // Different from the mobile layout in which the recommendations are displayed as a list, in the desktop
+                            const row = mutations[i].addedNodes[j]                                              // layout the recommendations are displayed in containers that each serve as a row with 4-5 videos.
 
                             if (row.querySelector("ytd-notification-text-renderer, ytd-compact-promoted-item-renderer"))       // Ignore notices and such, otherwise the layout gets messed up.
                                 continue
@@ -241,6 +257,7 @@ function main()
                             row.style.width = "max-content"                                                     // Make the row take only the space needed to hold the recommendations within. If the next row fits in the freed space, it will move to beside it.
                             row.firstElementChild.style = "margin-right: 0px; margin-left: 0px;"                // Remove the gap between different row containers in the same line.
 
+                            swappedRecommendationsObserver.observe(row.firstElementChild, {childList: true})
 
                             const recommendations = row.querySelectorAll("ytd-rich-item-renderer")
 
@@ -259,13 +276,13 @@ function main()
             loadedRecommendedVideosObserver.observe(recommendationsContainer, {childList: true})
 
 
-            addRecommendationMenuItems()
+
 
         }, 500)
     }
     else
     {
-        const waitForRelatedVideosContainer = setInterval(function()
+        const waitForRelatedVideosContainer = setInterval(async function()
         {
             const videosSelector = isMobile ? "ytm-video-with-context-renderer, ytm-compact-show-renderer, ytm-radio-renderer, ytm-compact-playlist-renderer" : "ytd-compact-video-renderer, ytd-compact-radio-renderer, ytd-compact-movie-renderer, ytd-compact-playlist-renderer"
 
@@ -275,6 +292,10 @@ function main()
                 return
 
             clearInterval(waitForRelatedVideosContainer)
+
+
+
+            await addRecommendationMenuItems()
 
 
             relatedVideosContainer = relatedVideosContainer.parentElement
@@ -294,9 +315,6 @@ function main()
             })
 
             loadedRelatedVideosObserver.observe(relatedVideosContainer, {childList: true})
-
-
-            addRecommendationMenuItems()
 
         }, 500)
     }
@@ -336,19 +354,22 @@ function main()
 
             document.body.click()
         }
+
+        hideChannelButton.style.cssText += "border-top: solid #ddd 1px;"
     }
 }
 
 
-async function processRecommendation(node)
+async function processRecommendation(node, reprocess = false)
 {
-    if (!node || node.className.includes("processed"))
+    if (!node || node.className.includes("processed") && !reprocess)
         return
 
     const videoTitleEll = node.querySelector(isMobile ? "h3, h4" : "#video-title, #movie-title")
 
     if (!videoTitleEll)
         return
+
 
     const videoTitleText = videoTitleEll.textContent.toLowerCase()                      // Convert the title's text to lowercase so that there's no distinction with uppercase letters.
     const videoMenuBtn = node.querySelector(isMobile ? "ytm-menu" : "ytd-menu-renderer")
@@ -361,6 +382,9 @@ async function processRecommendation(node)
     else if (node.querySelector(".badge-style-type-live-now"))                                      // In the homepage of the desktop layout, the live indicator is in a different element.
         videoType = "LIVE"
 
+
+    if (reprocess)
+        node.style.display = "initial"
 
     if (alwaysHideMixes && node.tagName == (isMobile ? "YTM-RADIO-RENDERER" : "YTD-COMPACT-RADIO-RENDERER")
         || alwaysHideOngoingLives && videoType == "LIVE"
@@ -417,7 +441,38 @@ async function processRecommendation(node)
     }
     else
     {
-        if (!node.classList.contains("offView"))
+        if (maxRepetitions > 1)
+        {
+            var value = await GM.getValue(videoUrl)
+
+            if (value)
+            {
+                if (reprocess)  value--
+
+                if (value >= maxRepetitions)
+                {
+                    if (!isHomepage && !filterRelated)
+                        return
+
+                    hideOrDimm(node)
+
+                    if (!isHomepage && !countRelated)
+                        return
+
+                    GM.deleteValue(videoUrl)
+                    GM.setValue("hide::"+videoUrl,"")
+
+                    if (!reprocess)
+                        processedVideosList.push("hide::"+videoUrl)
+
+                    node.classList.add("processed")
+
+                    return
+                }
+            }
+        }
+
+        if (!node.classList.contains("offView") && !reprocess)
         {
             node.classList.add("offView")               // Add this class to mark the recommendations waiting to be counted.
 
@@ -440,105 +495,98 @@ async function processRecommendation(node)
             if (videoType == "DEFAULT" || videoType == "UPCOMING" && filterPremier || videoType == "LIVE" && filterLives || !videoType)
             {
                 GM.setValue("hide::"+videoUrl,"")
-                processedVideosList.push("hide::"+videoUrl)
+
+                if (!reprocess)
+                    processedVideosList.push("hide::"+videoUrl)
 
                 node.classList.add("processed")
             }
 
             return
         }
-        else
-            var value = await GM.getValue(videoUrl)
 
-        if (typeof value == "undefined")
-        {
-            if (!isHomepage && !countRelated)
-                return
 
+        if (!isHomepage && !countRelated)
+            return
+
+        if (!value)
             value = 1
-        }
         else
-        {
-            if (value >= maxRepetitions)
-            {
-                if (!isHomepage && !filterRelated)
-                    return
-
-                hideOrDimm(node)
-
-                GM.deleteValue(videoUrl)
-                GM.setValue("hide::"+videoUrl,"")
-                processedVideosList.push("hide::"+videoUrl)
-
-                node.classList.add("processed")
-
-                return
-            }
-
-            if (!isHomepage && !countRelated)
-                return
-
             value++
-        }
 
         if (videoType == "DEFAULT" || videoType == "UPCOMING" && filterPremier || videoType == "LIVE" && filterLives || !videoType)
-            GM.setValue(videoUrl, value)
+        {
+            if (!reprocess)
+                GM.setValue(videoUrl, value)
+        }
 
         node.classList.add("processed")
     }
-
 }
 
 
 function addRecommendationMenuItems()
 {
-    const waitForRecommendationMenu = setInterval(function()
+    return new Promise(resolve =>
     {
-        const recommendationMenu = isMobile ? document.getElementById("menu") : document.querySelector("ytd-menu-renderer yt-icon.ytd-menu-renderer")
-
-        if (!recommendationMenu)
-            return
-
-        clearInterval(waitForRecommendationMenu)
-
-        if (document.getElementById("hideChannelButton") || document.getElementById("hidePartialTitleButton"))
-            return
-
-
-        if (isMobile)
+        const waitForRecommendationMenu = setInterval(function()
         {
-            recommendationMenu.firstChild.appendChild(hideChannelButton)
-            recommendationMenu.firstChild.appendChild(hidePartialTitleButton)
-        }
-        else
-        {
-            if (!document.querySelector("ytd-menu-popup-renderer"))
+            const recommendationMenu = isMobile ? document.getElementById("menu") : document.querySelector((isHomepage ? "#" : ".") + "details #menu yt-icon")
+
+            if (!recommendationMenu)
+                return
+
+            clearInterval(waitForRecommendationMenu)
+
+            if (document.getElementById("hideChannelButton") || document.getElementById("hidePartialTitleButton"))
+                return
+
+
+            if (isMobile)
             {
-                recommendationMenu.click()
-                recommendationMenu.click()              // The recommendation menu doesn't exist in the HTML before it's clicked for the first time. This forces it to be created and dismisses it immediately.
+                recommendationMenu.firstChild.appendChild(hideChannelButton)
+                recommendationMenu.firstChild.appendChild(hidePartialTitleButton)
+            }
+            else
+            {
+                if (!document.querySelector("ytd-menu-popup-renderer"))
+                {
+                    recommendationMenu.click()
+                    recommendationMenu.click()              // The recommendation menu doesn't exist in the HTML before it's clicked for the first time. This forces it to be created and dismisses it immediately.
+                }
+
+                const optionsParent = document.querySelector("ytd-menu-popup-renderer")
+                optionsParent.style = "max-height: max-content !important; max-width: max-content !important; height: max-content !important; width: 260px !important;"                // Change the max width and height so that the new item fits in the menu.
+                optionsParent.firstElementChild.style = "width: inherit;"
+
+                const waitForRecommendationMenuItem = setInterval(function()
+                {
+                    const recommendationMenuItem = optionsParent.querySelector("ytd-menu-service-item-renderer")
+
+                    if (!recommendationMenuItem)
+                        return
+
+                    clearInterval(waitForRecommendationMenuItem)
+
+
+                    recommendationMenuItem.parentElement.appendChild(hideChannelButton)
+                    recommendationMenuItem.parentElement.appendChild(hidePartialTitleButton)
+
+                    if (!isMenuReady)
+                    {
+                        recommendationMenu.click()
+                        recommendationMenu.click()
+
+                        isMenuReady = true
+                    }
+
+                    resolve()
+
+                }, 100)
             }
 
-            const blockUserParent = document.querySelector("ytd-menu-popup-renderer")
-            blockUserParent.style = "max-height: max-content !important; max-width: max-content !important; height: max-content !important; width: 260px !important;"                // Change the max width and height so that the new item fits in the menu.
-            blockUserParent.firstElementChild.style = "width: inherit;"
-
-            const waitForRecommendationMenuItem = setInterval(function()
-            {
-                const recommendationMenuItem = blockUserParent.querySelector("ytd-menu-service-item-renderer")
-
-                if (!recommendationMenuItem)
-                    return
-
-                clearInterval(waitForRecommendationMenuItem)
-
-
-                recommendationMenuItem.parentElement.appendChild(hideChannelButton)
-                recommendationMenuItem.parentElement.appendChild(hidePartialTitleButton)
-
-            }, 100)
-        }
-
-    }, 100)
+        }, 100)
+    })
 }
 
 
