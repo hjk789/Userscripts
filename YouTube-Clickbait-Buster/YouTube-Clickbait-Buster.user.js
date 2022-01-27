@@ -407,12 +407,12 @@ function processVideoItem(node)
 
     if (videoMenuBtn)
     {
-        videoMenuBtn.addEventListener("click", function()
+        videoMenuBtn.parentElement.onclick = function()
         {
             selectedVideoURL = videoUrl
 
             addRecommendationMenuItems()
-        })
+        }
     }
 }
 
