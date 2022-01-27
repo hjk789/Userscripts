@@ -1,12 +1,12 @@
 // ==UserScript==
 // @name            YouTube Similar Comments Hider
-// @version         1.7.0
+// @version         1.7.2
 // @description     Ensure originality in YouTube's comment section by hiding all sorts of repeated comments, copy-paste comments, repeated quotes from the video and saturated memes.
 // @author          BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
 // @copyright       2021+, BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
 // @homepage        https://github.com/hjk789/Userscripts/tree/master/YouTube-Similar-Comments-Hider
 // @license         https://github.com/hjk789/Userscripts/tree/master/YouTube-Similar-Comments-Hider#license
-// @include         https://www.youtube.com*
+// @match           https://www.youtube.com/*
 // @grant           GM.getValue
 // @grant           GM.setValue
 // @grant           GM.listValues
@@ -216,7 +216,7 @@ async function main()
             {
                 blockUserContainer = document.createElement("div")
                 blockUserContainer.id = "blockUser"
-                blockUserContainer.style = "background-color: white; font-size: 14px; text-align: center; padding: 8px 0px 8px 0px; cursor: pointer; margin-bottom: 8px;"
+                blockUserContainer.style = "background-color: white; font-size: 14px; text-align: left; padding: 8px 0px 8px 0px; cursor: pointer; margin-bottom: 8px; justify-self: left; width: 100%;"
                 blockUserContainer.innerHTML = "Block this user"
                 blockUserContainer.onclick = function()
                 {
@@ -231,7 +231,7 @@ async function main()
 
                 const blockUserIcon = document.createElement("span")
                 blockUserIcon.innerHTML = "🚫"
-                blockUserIcon.style = "margin-right: 17px; margin-left: 10px;"
+                blockUserIcon.style = "margin-right: 17px; margin-left: 20px;"
 
                 blockUserContainer.insertBefore(blockUserIcon, blockUserContainer.firstChild)
 
