@@ -107,8 +107,9 @@ const waitForURLchange = setInterval(function()           // So the script needs
             const container = document.createElement("div")
             container.id = "storyboard"
             container.style = "position: fixed; z-index: 9999; max-height: 100vh; max-width: 100.3vw; overflow-y: scroll; background-color: white; margin: auto; top: 0px; left: 0px; right: 0px;"
-            container.contentEditable = true                // Make the storyboards container focusable. From all the other methods to achieve this, this is the only one that works
-                                                            // reliably. The downside is that it makes the images selectable until it's disabled and there's no way to prevent that.
+            container.contentEditable = !isMobile                // Make the storyboards container focusable on the desktop layout. From all the other methods to achieve this, this is the only one that works reliably.
+            container.onmousedown = function() { window.getSelection().removeAllRanges() }            // Because contentEditable is true, the storyboards become selectable. This prevents that by immediately deselecting them.
+          
             document.body.appendChild(container)
 
             if (mode == 3)  mode--
