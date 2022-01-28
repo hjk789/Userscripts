@@ -14,36 +14,16 @@
 
 //*********** SETTINGS ***********
 
-const numColumns = 2        // The video storyboard YouTube provides is divided in chunks of frames. Set this to the number of chunks per row you would like. Note that the
-                            // size and the number of chunks per row is limited by the screen dimensions. You can open the chunk in a new tab to view it in full-size.
+const numColumns = 1        // The video storyboard YouTube provides is divided in chunks of frames. Set this to the number of chunks per row you would like. Note that the size
+                            // and the number of chunks per row is limited by your device's screen dimensions. You can open the chunk in a new tab to view it in full-size.
 
 //********************************
 
 
 let selectedVideoURL
 let viewStoryboardButton, viewThumbnailButton
-let currentPage, url
 const isMobile = !/www/.test(location.hostname)
 let isHomepage, isChannelPage, isMenuReady = false
-
-                                                          // Because YouTube is a single-page web app, everything happens in the same page, only changing the URL.
-const waitForURLchange = setInterval(function()           // So the script needs to check when the URL changes so it can be reassigned to the page and be able to work.
-{
-    url = location.href.split("#")[0]               // In the mobile layout, when a menu is open, a hash is added to the URL. This hash need to be ignored to prevent incorrect detections.
-
-    if (url != currentPage)
-    {
-        currentPage = url
-
-        isHomepage = location.pathname == "/"
-        isChannelPage = location.pathname.includes("/channel/") || location.pathname.includes("/user/")
-
-        if (isHomepage || isChannelPage || location.pathname.includes("/c/") || location.pathname == "/feed/subscriptions" || location.pathname == "/watch" || location.pathname == "/results")
-            main()
-    }
-
-}, 500)
-
 
 /* Add the styles */
 {
@@ -102,14 +82,14 @@ const waitForURLchange = setInterval(function()           // So the script needs
                 return
             }
 
-            const storyboardId = urlSplit[mode].replace(/.+rs/, "&sigh=rs")
+            const storyboardId = urlSplit[mode].replace(/.+#rs/, "&sigh=rs")
 
             const container = document.createElement("div")
             container.id = "storyboard"
             container.style = "position: fixed; z-index: 9999; max-height: 100vh; max-width: 100.3vw; overflow-y: scroll; background-color: white; margin: auto; top: 0px; left: 0px; right: 0px;"
             container.contentEditable = !isMobile                // Make the storyboards container focusable on the desktop layout. From all the other methods to achieve this, this is the only one that works reliably.
             container.onmousedown = function() { window.getSelection().removeAllRanges() }            // Because contentEditable is true, the storyboards become selectable. This prevents that by immediately deselecting them.
-          
+
             document.body.appendChild(container)
 
             if (mode == 3)  mode--
@@ -186,185 +166,87 @@ const waitForURLchange = setInterval(function()           // So the script needs
 }
 
 
+main()
+
 
 function main()
 {
-    let pageContainerSelector = "body"
+    const videosSelector = isMobile ? "ytm-rich-item-renderer, ytm-video-with-context-renderer, ytm-compact-video-renderer, ytm-compact-playlist-renderer, ytm-compact-show-renderer"
+                                    : "ytd-rich-item-renderer, ytd-grid-video-renderer, ytd-compact-video-renderer, ytd-compact-playlist-renderer, ytd-compact-movie-renderer, ytd-video-renderer"
 
-                                // When you switch from e.g. the homepage to a video or from the subscriptions page to the search page, YouTube creates a new page container and hides the previous one. The problem is that the videos from
-    if (!isMobile)              // the previous page are still present in the HTML, causing the query to incorrectly get the elements from the previous page. So it's necessary to distinguish the page containers and query from there.
-    {
-        pageContainerSelector = isHomepage || isChannelPage || location.pathname.includes("/c/") || location.pathname == "/feed/subscriptions" ? "ytd-browse"
-                                : location.pathname == "/watch" ? "ytd-watch-flexy"
-                                : "ytd-search"
-    }
+    addRecommendationMenuItems()
 
-    const waitForVideoItemsContainer = setInterval(async function()
-    {
-        let videoItemsContainer
-        const videosSelector = isMobile ? "ytm-rich-item-renderer, ytm-video-with-context-renderer, ytm-compact-video-renderer, ytm-radio-renderer, ytm-compact-playlist-renderer, ytm-compact-show-renderer"
-                                        : "ytd-rich-item-renderer, ytd-grid-video-renderer, ytd-compact-video-renderer, ytd-compact-radio-renderer, ytd-compact-playlist-renderer, ytd-compact-movie-renderer, ytd-video-renderer"
+    document.body.addEventListener("mousedown", function()                // Process all video items every time the user clicks anywhere on the page. Although not
+    {                                                                     // ideal, it's the most guaranteed way of working reliably regardless of the situation.
+        const videoItems = document.querySelectorAll(videosSelector)
 
-        const pageContainer = document.querySelector(pageContainerSelector)
-
-        if (!pageContainer)
-            return
-
-        videoItemsContainer = pageContainer.querySelector(videosSelector)
-
-        if (!videoItemsContainer)
-            return
-
-        clearInterval(waitForVideoItemsContainer)
-
-        videoItemsContainer = videoItemsContainer.parentElement
-
-        if (location.pathname == "/results" || isMobile && (isChannelPage || location.pathname.includes("/c/") && location.pathname.includes("/featured")))
-            videoItemsContainer = videoItemsContainer.parentElement.parentElement
-        else if (pageContainerSelector == "ytd-browse")
-            videoItemsContainer = pageContainer.querySelector("#contents")
-
-
-
-        if (!isMobile)
-        {
-            await addRecommendationMenuItems()
-
-            if (isHomepage)
-            {
-                const swappedRecommendationsObserver = new MutationObserver(function(mutations)            // When the desktop homepage is loaded and the user scrolls down a little, it may happen that YouTube reorganizes the recommendations. When this happens, the
-                {                                                                                          // reference of the elements are mostly the same, but the actual content is swapped with another one, and thus requiring to reprocess these recommendations.
-                    for (let i=0; i < mutations.length; i++)
-                    {
-                        if (mutations[i].removedNodes || mutations[i].addedNodes)               // YouTube never removes recommendations, and if that happens, is because it's reorganizing them.
-                        {
-                            const recommendations = mutations[i].target.children
-
-                            for (let j=0; j < recommendations.length; j++)
-                                processVideoItem(recommendations[j])
-                        }
-                    }
-                })
-
-                const firstRows = videoItemsContainer.children
-
-                for (let i=0; i < firstRows.length; i++)
-                    swappedRecommendationsObserver.observe(firstRows[i].firstElementChild, {childList: true})
-            }
-        }
-
-
-        const loadedVideoItemsObserver = new MutationObserver(function(mutations)
-        {
-            for (let i=0; i < mutations.length; i++)
-            {
-                for (let j=0; j < mutations[i].addedNodes.length; j++)
-                {
-                    const node = mutations[i].addedNodes[j]
-
-                    if (!isMobile && isHomepage && node.querySelector("ytd-notification-text-renderer, ytd-compact-promoted-item-renderer"))                // Ignore notices and such.
-                        continue
-
-                    if (node.tagName == "YT" + (isMobile ? "M" : "D") + "-" + (isHomepage ? "RICH" : "ITEM") + "-SECTION-RENDERER"                      // This is for pages that load the video items chunks each nested in containers instead of loose.
-                        || isHomepage && !isMobile && node.tagName == "YTD-RICH-GRID-ROW")
-                    {
-                        loadedVideoItemsObserver.observe((isMobile ? node.firstChild : node.querySelector("#contents")), {childList: true})             // Each container need to be observed too, as the containers are
-                                                                                                                                                        // added to the page even when there are still some items to load.
-                        const videoItems = node.querySelectorAll(videosSelector)
-
-                        for (let k=0; k < videoItems.length; k++)
-                            processVideoItem(videoItems[k])
-                    }
-                    else processVideoItem(node)
-                }
-            }
-        })
-
-        loadedVideoItemsObserver.observe(videoItemsContainer, {childList: true})
-
-
-        const firstVideos = videoItemsContainer.querySelectorAll(videosSelector)                     // Because a mutation observer is being used and the script is run after the page
-                                                                                                     // is fully loaded, the observer isn't triggered with the videos that appear first.
-        for (let i=0; i < firstVideos.length; i++)                                                   // This does the processing manually to these first ones.
-        {
-            loadedVideoItemsObserver.observe(firstVideos[i].parentElement, {childList: true})
-
-            processVideoItem(firstVideos[i])
-        }
-
-    }, 500)
+        for (let i=0; i < videoItems.length; i++)
+            processVideoItem(videoItems[i])
+    })
 }
 
 function addRecommendationMenuItems()
 {
-    return new Promise(resolve =>
+    const waitForRecommendationMenu = setInterval(function()
     {
-        const waitForRecommendationMenu = setInterval(function()
+        const recommendationMenu = isMobile ? document.getElementById("menu") : document.querySelector("#details #menu yt-icon, .details #menu yt-icon, #title-wrapper #menu yt-icon")
+
+        if (!recommendationMenu)
+            return
+
+        clearInterval(waitForRecommendationMenu)
+
+        if (document.getElementById("viewStoryboardButton") || document.getElementById("viewThumbnailButton"))              // Only add the menu items if they aren't present already.
+            return
+
+
+        if (isMobile)
         {
-            const recommendationMenu = isMobile ? document.getElementById("menu") : document.querySelector("#details #menu yt-icon, .details #menu yt-icon, #title-wrapper #menu yt-icon")
-
-            if (!recommendationMenu)
-                return
-
-            clearInterval(waitForRecommendationMenu)
-
-            if (document.getElementById("viewStoryboardButton") || document.getElementById("viewThumbnailButton"))              // Only add the menu items if they aren't present already.
+            recommendationMenu.firstChild.appendChild(viewStoryboardButton)
+            recommendationMenu.firstChild.appendChild(viewThumbnailButton)
+        }
+        else
+        {
+            if (!document.querySelector("ytd-menu-popup-renderer"))
             {
-                resolve()
-                return
+                recommendationMenu.click()
+                recommendationMenu.click()              // The recommendation menu doesn't exist in the HTML before it's clicked for the first time. This forces it to be created and dismisses it immediately.
             }
 
+            const optionsParent = document.querySelector("ytd-menu-popup-renderer")
+            optionsParent.style = "max-height: max-content !important; max-width: max-content !important; height: max-content !important; width: 260px !important;"                // Change the max width and height so that the new items fit in the menu.
+            optionsParent.firstElementChild.style = "width: inherit;"
 
-            if (isMobile)
+            const waitForRecommendationMenuItem = setInterval(function()
             {
-                recommendationMenu.firstChild.appendChild(viewStoryboardButton)
-                recommendationMenu.firstChild.appendChild(viewThumbnailButton)
-            }
-            else
-            {
-                if (!document.querySelector("ytd-menu-popup-renderer"))
+                const recommendationMenuItem = optionsParent.querySelector("ytd-menu-service-item-renderer")
+
+                if (!recommendationMenuItem)
+                    return
+
+                clearInterval(waitForRecommendationMenuItem)
+
+
+                recommendationMenuItem.parentElement.appendChild(viewStoryboardButton)
+                recommendationMenuItem.parentElement.appendChild(viewThumbnailButton)
+
+                if (!isMenuReady)
                 {
-                    recommendationMenu.click()
-                    recommendationMenu.click()              // The recommendation menu doesn't exist in the HTML before it's clicked for the first time. This forces it to be created and dismisses it immediately.
+                    recommendationMenu.click()              // The menu doesn't apply the width and height adjustments the first time it's opened, but it
+                    recommendationMenu.click()              // does on the second time. This forces the menu to be opened again and dismisses it immediately.
+
+                    isMenuReady = true
                 }
 
-                const optionsParent = document.querySelector("ytd-menu-popup-renderer")
-                optionsParent.style = "max-height: max-content !important; max-width: max-content !important; height: max-content !important; width: 260px !important;"                // Change the max width and height so that the new items fit in the menu.
-                optionsParent.firstElementChild.style = "width: inherit;"
+                if ((isChannelPage || location.pathname.includes("/c/")) && !document.querySelector("ytd-guide-signin-promo-renderer"))             // In the channel page, when the user is signed in, Youtube already adds a separator at the bottom of the menu.
+                    viewStoryboardButton.style.borderTop = ""                                                                                       // This removes the separator when on these pages.
+                else
+                    viewStoryboardButton.style.borderTop = "solid #ddd 1px"                                                                         // And adds it back when the user switches to another non-channel page.
 
-                const waitForRecommendationMenuItem = setInterval(function()
-                {
-                    const recommendationMenuItem = optionsParent.querySelector("ytd-menu-service-item-renderer")
+            }, 100)
+        }
 
-                    if (!recommendationMenuItem)
-                        return
-
-                    clearInterval(waitForRecommendationMenuItem)
-
-
-                    recommendationMenuItem.parentElement.appendChild(viewStoryboardButton)
-                    recommendationMenuItem.parentElement.appendChild(viewThumbnailButton)
-
-                    if (!isMenuReady)
-                    {
-                        recommendationMenu.click()              // The menu doesn't apply the width and height adjustments the first time it's opened, but it
-                        recommendationMenu.click()              // does on the second time. This forces the menu to be opened again and dismisses it immediately.
-
-                        isMenuReady = true
-                    }
-
-                    if ((isChannelPage || location.pathname.includes("/c/")) && !document.querySelector("ytd-guide-signin-promo-renderer"))             // In the channel page, when the user is signed in, Youtube already adds a separator at the bottom of the menu.
-                        viewStoryboardButton.style.borderTop = ""                                                                                       // This removes the separator when on these pages.
-                    else
-                        viewStoryboardButton.style.borderTop = "solid #ddd 1px"                                                                         // And adds it back when the user switches to another non-channel page.
-
-                    resolve()
-
-                }, 100)
-            }
-
-        }, 100)
-    })
+    }, 100)
 }
 
 function processVideoItem(node)
@@ -374,23 +256,6 @@ function processVideoItem(node)
     if (!videoTitleEll)
         return
 
-    const videoMenuBtn = node.querySelector(isMobile ? "ytm-menu" : "ytd-menu-renderer")
-
-    if (!videoMenuBtn)
-    {                                                                           // Sometimes it happens that the menu button disappears then appears again after a few seconds.
-        const waitForRecommendationMenu = setTimeout(function()                 // This waits for the menu button to reappear before continuing.
-        {
-            const videoMenuBtn = node.querySelector(isMobile ? "ytm-menu" : "ytd-menu-renderer")
-
-            if (!videoMenuBtn)
-                return
-
-            processVideoItem(node)
-
-        }, 500)
-
-        return
-    }
 
     let videoUrl = videoTitleEll.href
 
@@ -402,6 +267,8 @@ function processVideoItem(node)
             videoUrl = videoTitleEll.parentElement.parentElement.href
     }
 
+
+    const videoMenuBtn = node.querySelector(isMobile ? "ytm-menu" : "ytd-menu-renderer")
 
     // Because the recommendation's side-menu is separated from the recommendations container, this listens to clicks on each three-dot
     // button and store in a variable in what recommendation it was clicked, to then be used to load the storyboards or thumbnail.
@@ -444,6 +311,13 @@ function createStoryboardImg(num, container, urlSplit, param, mode)
             container.style.overflowY = "auto"
 
         container.contentEditable = false
+
+        if (container.children.length == 1)
+        {
+            alert("Storyboard not available for this video!")
+
+            container.remove()
+        }
 
         this.remove()
     }
