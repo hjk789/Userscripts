@@ -30,5 +30,5 @@ This userscript was tested and works in Kiwi Browser with Tampermonkey on Androi
 
 - You can view the code, download copies to your devices, install, run, use the features and uninstall this software.
 - You can modify your copy as you like.
-- Feel free to refer to this userscript, just make sure to include a link to its [GitHub homepage](https://github.com/hjk789/Userscripts/tree/master/YouTube-Clickbait-Buster) or to it's [GreasyFork page]().
+- Feel free to refer to this userscript, just make sure to include a link to its [GitHub homepage](https://github.com/hjk789/Userscripts/tree/master/YouTube-Clickbait-Buster) or to it's [GreasyFork page](https://greasyfork.org/scripts/439305-youtube-clickbait-buster).
 - You cannot do any other action not allowed in this license.
