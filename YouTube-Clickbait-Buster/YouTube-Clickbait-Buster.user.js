@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name            YouTube Clickbait-Buster
-// @version         1.0.0
+// @version         1.0.1
 // @description     Check whether it's worth watching a video by peeking it's content, viewing the thumbnail in full-size and displaying the full title. Works on both YouTube's desktop and mobile layouts.
 // @author          BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
 // @copyright       2022+, BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
@@ -23,7 +23,7 @@ const numColumns = 1        // The video storyboard YouTube provides is divided 
 let selectedVideoURL
 let viewStoryboardButton, viewThumbnailButton
 const isMobile = !/www/.test(location.hostname)
-let isHomepage, isChannelPage, isMenuReady = false
+let isMenuReady = false
 
 /* Add the styles */
 {
@@ -172,7 +172,7 @@ main()
 function main()
 {
     const videosSelector = isMobile ? "ytm-rich-item-renderer, ytm-video-with-context-renderer, ytm-compact-video-renderer, ytm-compact-playlist-renderer, ytm-compact-show-renderer"
-                                    : "ytd-rich-item-renderer, ytd-grid-video-renderer, ytd-compact-video-renderer, ytd-compact-playlist-renderer, ytd-compact-movie-renderer, ytd-video-renderer"
+                                    : "ytd-rich-item-renderer, ytd-grid-video-renderer, ytd-compact-video-renderer, ytd-compact-playlist-renderer, ytd-compact-movie-renderer, ytd-video-renderer, ytd-compact-radio-renderer"
 
     addRecommendationMenuItems()
 
@@ -238,10 +238,12 @@ function addRecommendationMenuItems()
                     isMenuReady = true
                 }
 
-                if ((isChannelPage || location.pathname.includes("/c/")) && !document.querySelector("ytd-guide-signin-promo-renderer"))             // In the channel page, when the user is signed in, Youtube already adds a separator at the bottom of the menu.
-                    viewStoryboardButton.style.borderTop = ""                                                                                       // This removes the separator when on these pages.
+                const isChannelPage = location.pathname.includes("/channel/") || location.pathname.includes("/user/") || location.pathname.includes("/c/")
+
+                if (isChannelPage && !document.querySelector("ytd-guide-signin-promo-renderer"))             // In the channel page, when the user is signed in, Youtube already adds a separator at the bottom of the menu.
+                    viewStoryboardButton.style.borderTop = ""                                                // This removes the separator when on these pages.
                 else
-                    viewStoryboardButton.style.borderTop = "solid #ddd 1px"                                                                         // And adds it back when the user switches to another non-channel page.
+                    viewStoryboardButton.style.borderTop = "solid #ddd 1px"                                  // And adds it back when the user switches to another non-channel page.
 
             }, 100)
         }
@@ -337,4 +339,3 @@ function cleanVideoUrl(fullUrl)
             return urlSplit[0]+"?"+paramsSplit[i]       // Return the cleaned video URL.
     }
 }
-
