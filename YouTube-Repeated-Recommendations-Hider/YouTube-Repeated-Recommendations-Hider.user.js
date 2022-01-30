@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name            YouTube Repeated Recommendations Hider
 // @description     Hide any videos that are recommended more than twice. You can also hide by channel or by partial title. Works on both YouTube's desktop and mobile layouts.
-// @version         2.1.6
+// @version         2.3.0
 // @author          BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
 // @copyright       2020+, BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
 // @homepage        https://github.com/hjk789/Userscripts/tree/master/YouTube-Repeated-Recommendations-Hider
@@ -15,7 +15,7 @@
 // ==/UserScript==
 
 
-//********** SETTINGS ***********
+//************ SETTINGS *************
 
 const maxRepetitions = 2              // The maximum number of times that the same recommended video is allowed to appear
                                       // before starting to get hidden. Set this to 1 if you want one-time recommendations.
@@ -25,10 +25,13 @@ const filterRelated = true            // Whether the repeated related videos (th
 const countRelated = true             // When false, new related videos are ignored in the countings and are allowed to appear any number of times, as long as they don't
                                       // appear in the homepage recommendations. If set to true, the related videos are counted even if they never appeared in the homepage.
 
-const filterPremiere = false          // Whether to include in the filtering repeated videos yet to be premiered. If set to false, these recommendations won't get "remembered"
+const countSubscriptionsPage = true   // Whether the videos in the Subscriptions page should also be counted. When false, these videos are only counted when they appear in the homepage or
+                                      // related videos. Note that the repetition filtering doesn't happen in the subscriptions page, only the countings. But it does filter by partial title.
+
+const countPremiere = false           // Whether to include in the filtering repeated videos yet to be premiered. If set to false, these recommendations won't get "remembered"
                                       // until the video is finally released, then it will start counting as any other video. Set this to true if you want to hide them anyway.
 
-const filterLives = true              // Same as above but for ongoing live streams. If set to false, the recommended live stream will start to be counted only after the stream ends and becomes a whole video.
+const countLives = true               // Same as above but for ongoing (active) live streams. If set to false, the recommended live stream will start to be counted only after the stream ends and becomes a whole video.
 
 const dimFilteredHomepage = false     // Whether the repeated recommendations in the homepage should get dimmed (partially faded) instead of completely hidden.
 const dimFilteredRelated = false      // Same thing, but for the related videos.
@@ -36,59 +39,68 @@ const dimFilteredRelated = false      // Same thing, but for the related videos.
 const dimWatchedVideos = true         // Whether the title of videos already watched should be dimmed, to differentiate from the ones you didn't watched yet. The browser itself is responsible for checking whether the
                                       // link was already visited or not, so if you delete a video from the browser history it will be treated as "not watched", the same if you watch them in a private window (incognito).
 
-const alwaysHideMixes = true          // Whether mixes should always be hidden independently of how many times it appeared. If true, mixes will never be visible again. If set to false, they will be treated just like other videos.
+const alwaysHideMixes = true          // Whether mixes should always be hidden independently of how many times they appeared. If true, mixes will never be visible again. If set to false, they will be treated just like other videos.
 const alwaysHidePlaylists = true      // Same as above but for recommended playlists. Note that playlists here refers to a list of videos, not single compilation videos.
-const alwaysHideOngoingLives = false  // Same as above but for recommended ongoing (active) live streams.
+const alwaysHideOngoingLives = false  // Same as above but for recommended ongoing live streams.
 const alwaysHideMovies = true         // Same as above but for recommended paid movies from YouTube Movies.
 
-//*******************************
+//**********************************
 
 
 
-let channelsToHide, partialTitlesToHide, selectedChannel
-let hideChannelButton, hidePartialTitleButton
-let processedVideosList, isHomepage
-let currentPage = location.href, url
+let channelsToHide, partialTitlesToHide, processedVideosList, videosNotToHideNow = []
+let hideChannelButton, hidePartialTitleButton, selectedChannel
+let currentPage = "", url
+let isHomepage, isSubscriptionsPage
 const isMobile = !/www/.test(location.hostname)
-let isTabActivated = false, isMenuReady = false
+let isMenuReady = false, isTabActive = false, firstTriggerVideos = []
 
-                                                          // Because YouTube is a single-page web app, everything happens in the same page, only changing the URL.
-const waitForURLchange = setInterval(function()           // So the script needs to check when the URL changes so it can be reassigned to the page and be able to work.
+                                                                    // Because YouTube is a single-page web app, everything happens in the same page, only changing the URL.
+const waitForURLchange = setInterval(async function()               // So the script needs to check when the URL changes so it can be reassigned to the page and be able to work.
 {
     url = location.href.split("#")[0]               // In the mobile layout, when a menu is open, a hash is added to the URL. This hash need to be ignored to prevent incorrect detections.
 
     if (url != currentPage)
     {
+        const isSamePathname = currentPage.includes(location.pathname)
+
         currentPage = url
 
-        if (location.pathname != "/" && location.pathname != "/watch")              // Only run on the homepage and video page.
+        isHomepage = location.pathname == "/"
+        isSubscriptionsPage = location.pathname == "/feed/subscriptions"
+
+        if (!isHomepage && !isSubscriptionsPage && location.pathname != "/watch")              // Only run on the homepage, subscriptions page and video page.
             return
 
-        main()
-    }
+        if (isSubscriptionsPage && !countSubscriptionsPage)
+            return
+
+        videosNotToHideNow = []
+
+        if (!isMenuReady)
+            await getGMsettings()
+
+        main(isSamePathname)                // When you are on a video page and left-click another video, YouTube instead of replacing the recommendation's elements,
+    }                                       // it reuses them, only changing their contents. So these already processed elements need to be processed again.
 
 }, 500)
 
-                                                                              // An intersection observer is being used so that the recommendations are counted only
-const onViewObserver = new IntersectionObserver(async (entries) =>            // when the user actually sees them on the screen, instead of when they are loaded.
+                                                                        // An intersection observer is being used so that the recommendations are counted only
+const onViewObserver = new IntersectionObserver((entries) =>            // when the user actually sees them on the screen, instead of when they are loaded.
 {
-    if (!isTabActivated)              // Update the stored values whenever the video tab is active. Otherwise, the stored values get out of sync
-    {                               // with the other videos that the user opened, and the recommendations end up being counted incorrectly.
-        await getGMsettings()
-
-        isTabActivated = true
-    }
-
-    entries.forEach(entry =>
+    entries.forEach(async entry =>
     {
         if (entry.isIntersecting)
-            processRecommendation(entry.target)
+        {
+            if (isHomepage || isMobile || isTabActive)
+                await processRecommendation(entry.target, false, "onViewObserver")
+            else
+                firstTriggerVideos.push(entry.target)               // The intersection observer fires even when the tab is in the background. This stores in an array
+        }                                                           // all these detected recommendations and wait for the user to switch to this tab to process them.
     })
 
 }, {threshold: 1.0})                                            // Only trigger the observer when the recommendation is completely visible.
 
-
-document.body.onblur = function() { isTabActivated = false }
 
 
 if (dimWatchedVideos)
@@ -109,12 +121,8 @@ if (!isMobile)
 
 
 
-getGMsettings(main)
 
-
-
-
-async function getGMsettings(then)
+async function getGMsettings()
 {
     let value = await GM.getValue("channels")
 
@@ -133,14 +141,11 @@ async function getGMsettings(then)
 
     processedVideosList = await GM.listValues()             // Get in an array all the items currently in the script's storage. Searching for a value in
                                                             // an array is much faster and lighter than calling GM.getValue for every recommendation.
-    if (then)  then()
 }
 
 
-function main()
+function main(isReprocess = false)
 {
-    isHomepage = location.pathname == "/"
-
     if (isHomepage)
     {
         const waitForRecommendationsContainer = setInterval(async function()
@@ -151,7 +156,7 @@ function main()
             {
                 recommendationsContainer = document.querySelector(".rich-grid-renderer-contents")
 
-                try { recommendationsContainer.children[0].querySelector("h3, h4").nextSibling.firstChild.firstChild.textContent }              // In some very specific cases an error may occur while getting the video title because it's not available yet. This try-catch
+                try { recommendationsContainer.children[0].querySelector("h3, h4").nextSibling.firstChild.firstChild.textContent }              // In some very specific cases an error may occur while getting the video channel because it's not available yet. This try-catch
                 catch(e) { return }                                                                                                             // is a straight-forward way of making sure that all elements of the path are available, instead of checking each one.
             }
             else
@@ -174,14 +179,11 @@ function main()
 
             const videosSelector = isMobile ? "ytm-rich-item-renderer" : "ytd-rich-item-renderer"
 
-            let firstVideos = recommendationsContainer.querySelectorAll(videosSelector)                // Because a mutation observer is being used and the script is run after the page is fully
-                                                                                                       // loaded, the observer isn't triggered with the recommendations that appear first.
-            for (let i=0; i < firstVideos.length; i++)                                                 // This does the processing manually to these first ones.
-                processRecommendation(firstVideos[i])
 
 
-            const swappedRecommendationsObserver = new MutationObserver(function(mutations)            // When the desktop homepage is loaded and the user scrolls down a little, it may happen that YouTube reorganizes the recommendations. When this happens, the
-            {                                                                                          // reference of the elements are mostly the same, but the actual content is swapped with another one, and thus requiring to reprocess these recommendations.
+
+            const swappedRecommendationsObserver = new MutationObserver(async function(mutations)            // When the desktop homepage is loaded and the user scrolls down a little, it may happen that YouTube reorganizes the recommendations. When this happens, the
+            {                                                                                                // reference of the elements are mostly the same, but the actual content is swapped with another one, and thus requiring to reprocess these recommendations.
                 for (let i=0; i < mutations.length; i++)
                 {
                     if (mutations[i].removedNodes || mutations[i].addedNodes)               // YouTube never remove recommendations, and when that happens, is because it's reorganizing them.
@@ -189,7 +191,7 @@ function main()
                         const recommendations = mutations[i].target.children
 
                         for (let j=0; j < recommendations.length; j++)
-                            processRecommendation(recommendations[j], true)
+                            await processRecommendation(recommendations[j], true, "swappedRecommendationsObserver")
                     }
                 }
             })
@@ -210,73 +212,60 @@ function main()
                     row.style.justifyContent = "left"                       // These two lines remove an extra space on the left side, to make them align correctly with the other ones.
                     row.firstElementChild.style.margin = "0px"
 
-                    firstVideos = row.querySelectorAll(videosSelector)
+                    const rowVideos = row.querySelectorAll(videosSelector)
 
-                    for (let j=0; j < firstVideos.length; j++)
-                        firstVideos[j].style.width = "360px"                // Force the recommendations to be displayed with this size, otherwise they get "crushed".
+                    for (let j=0; j < rowVideos.length; j++)
+                        rowVideos[j].style.width = "360px"                // Force the recommendations to be displayed with this size, otherwise they get "crushed".
                 }
             }
 
 
-            let loadedRecommendedVideosObserver
-
-            if (isMobile)
+            const loadedRecommendedVideosObserver = new MutationObserver(async function(mutations)
             {
-                loadedRecommendedVideosObserver = new MutationObserver(function(mutations)              // A mutation observer is being used so that all processings happen only
-                {                                                                                       // when actually needed, which is when more recommendations are loaded.
-                    for (let i=0; i < mutations.length; i++)
-                    {
-                        for (let j=0; j < mutations[i].addedNodes.length; j++)
-                        {
-                            const node = mutations[i].addedNodes[j]
-
-                            if (node.tagName == "YTM-RICH-SECTION-RENDERER")                // The Covid-19 info and Top News section is loaded as a container of videos which need to be processed separatedly.
-                            {
-                                const sectionVideos = node.querySelectorAll(videosSelector)
-
-                                for (let k=0; k < sectionVideos.length; k++)
-                                    processRecommendation(sectionVideos[k])
-                            }
-                            else processRecommendation(node)
-                        }
-                    }
-                })
-            }
-            else
-            {
-                loadedRecommendedVideosObserver = new MutationObserver(function(mutations)
+                for (let i=0; i < mutations.length; i++)
                 {
-                    for (let i=0; i < mutations.length; i++)
-                    {
-                        for (let j=0; j < mutations[i].addedNodes.length; j++)
-                        {                                                                                       // Different from the mobile layout in which the recommendations are displayed as a list, in the desktop
-                            const row = mutations[i].addedNodes[j]                                              // layout the recommendations are displayed in containers that each serve as a row with 4-5 videos.
+                    for (let j=0; j < mutations[i].addedNodes.length; j++)
+                    {                                                                                       // Different from the mobile layout in which the recommendations are displayed as a list, in the desktop
+                        const row = mutations[i].addedNodes[j]                                              // layout the recommendations are displayed in containers that each serve as a row with 4-5 videos.
 
+                        if (!isMobile)
+                        {
                             if (row.querySelector("ytd-notification-text-renderer, ytd-compact-promoted-item-renderer"))       // Ignore notices and such, otherwise the layout gets messed up.
                                 continue
 
                             row.style.width = "max-content"                                                     // Make the row take only the space needed to hold the recommendations within. If the next row fits in the freed space, it will move to beside it.
                             row.firstElementChild.style = "margin-right: 0px; margin-left: 0px;"                // Remove the gap between different row containers in the same line.
 
-                            swappedRecommendationsObserver.observe(row.firstElementChild, {childList: true})
+                            swappedRecommendationsObserver.observe(row.querySelector("#contents"), {childList: true})
+                        }
 
-                            const recommendations = row.querySelectorAll("ytd-rich-item-renderer")
+                        if (!isMobile || row.tagName == "YTM-RICH-SECTION-RENDERER")
+                        {
+                            loadedRecommendedVideosObserver.observe((isMobile ? row.firstChild : row.querySelector("#contents")), {childList: true})
+
+                            const recommendations = row.querySelectorAll(videosSelector)
 
                             for (let k=0; k < recommendations.length; k++)
                             {
-                                recommendations[k].style.width = "360px"
+                                if (!isMobile)
+                                    recommendations[k].style.width = "360px"
 
-                                processRecommendation(recommendations[k])
+                                await processRecommendation(recommendations[k], false, "loadedRecommendedVideosObserver")
                             }
-
                         }
+                        else await processRecommendation(row, false, "loadedRecommendedVideosObserver")
+
                     }
-                })
-            }
+                }
+            })
 
             loadedRecommendedVideosObserver.observe(recommendationsContainer, {childList: true})
 
 
+            const firstVideos = recommendationsContainer.querySelectorAll(videosSelector)              // Because a mutation observer is being used and the script is run after the page is fully
+                                                                                                       // loaded, the observer isn't triggered with the recommendations that appear first.
+            for (let i=0; i < firstVideos.length; i++)                                                 // This does the processing manually to these first ones.
+                await processRecommendation(firstVideos[i], false, "firstVideos")
 
 
         }, 500)
@@ -285,38 +274,79 @@ function main()
     {
         const waitForRelatedVideosContainer = setInterval(async function()
         {
-            const videosSelector = isMobile ? "ytm-video-with-context-renderer, ytm-compact-show-renderer, ytm-radio-renderer, ytm-compact-playlist-renderer" : "ytd-compact-video-renderer, ytd-compact-radio-renderer, ytd-compact-movie-renderer, ytd-compact-playlist-renderer"
+            const videosSelector = isMobile ? "ytm-video-with-context-renderer, ytm-compact-show-renderer, ytm-radio-renderer, ytm-compact-playlist-renderer"
+                                            : "ytd-compact-video-renderer, ytd-compact-movie-renderer, ytd-compact-radio-renderer, ytd-compact-playlist-renderer, ytd-grid-video-renderer"
 
-            let relatedVideosContainer = document.querySelector(videosSelector)
+            const pageContainer = document.querySelector(isSubscriptionsPage ? "ytd-browse" : "ytd-watch-flexy")
+
+            if (!pageContainer)
+                return
+
+            let relatedVideosContainer = pageContainer.querySelector(videosSelector)
 
             if (!relatedVideosContainer)
                 return
+
+            if (isSubscriptionsPage)
+                relatedVideosContainer = document.querySelector("ytd-browse #contents")
+            else
+                relatedVideosContainer = relatedVideosContainer.parentElement
 
             clearInterval(waitForRelatedVideosContainer)
 
 
 
-            if (!isMobile)
+            if (!isMobile && !isSubscriptionsPage)
                 await addRecommendationMenuItems()
 
 
-            relatedVideosContainer = relatedVideosContainer.parentElement
-
-            const firstRelatedVideos = relatedVideosContainer.querySelectorAll(videosSelector)
-
-            for (let i=0; i < firstRelatedVideos.length; i++)
-                processRecommendation(firstRelatedVideos[i])
-
-            const loadedRelatedVideosObserver = new MutationObserver(function(mutations)
+            const loadedRelatedVideosObserver = new MutationObserver(async function(mutations)
             {
                 for (let i=0; i < mutations.length; i++)
                 {
                     for (let j=0; j < mutations[i].addedNodes.length; j++)
-                        processRecommendation(mutations[i].addedNodes[j])
+                        await processRecommendation(mutations[i].addedNodes[j], isReprocess, "loadedRelatedVideosObserver")
                 }
             })
 
             loadedRelatedVideosObserver.observe(relatedVideosContainer, {childList: true})
+
+
+            const firstRelatedVideos = relatedVideosContainer.querySelectorAll(videosSelector)
+
+            for (let i=0; i < firstRelatedVideos.length; i++)
+                await processRecommendation(firstRelatedVideos[i], isReprocess, "firstRelatedVideos")
+
+
+            if (!isMobile)
+            {
+                document.body.onfocus = async function()
+                {
+                    await getGMsettings()                       // Update the stored values whenever the video tab is active. Otherwise, the stored values get out of sync
+                                                                // with the other videos that the user opened, and the recommendations end up being counted incorrectly.
+                    if (!isTabActive)
+                    {
+                        while (firstTriggerVideos.length > 0)
+                        {
+                            await processRecommendation(firstTriggerVideos[0], false, "onFocusFirstTrigger")
+
+                            firstTriggerVideos.shift()              // Remove the first item of the array.
+                        }
+                    }
+
+                    isTabActive = true
+
+                                                                                    // When the user opens several videos in a new tab and then switches to them one after the other, reprocess the list of related videos as soon
+                    if (location.pathname == "/watch")                              // as the user switches to the tab, to make sure that the processed videos in the previous tabs don't continue appearing in the next tabs.
+                    {
+                        const relatedVideos = document.querySelector("ytd-compact-video-renderer").parentElement.children
+
+                        for (let i=0; i < relatedVideos.length; i++)
+                            processRecommendation(relatedVideos[i], true, "onFocusReprocess")
+                    }
+                }
+
+            }
 
         }, 500)
     }
@@ -362,7 +392,7 @@ function main()
 }
 
 
-async function processRecommendation(node, reprocess = false)
+async function processRecommendation(node, reprocess = false, source = "")
 {
     if (!node || node.className.includes("processed") && !reprocess)
         return
@@ -386,17 +416,20 @@ async function processRecommendation(node, reprocess = false)
 
 
     if (reprocess)
-        node.style.display = "initial"
+        node.style.display = "flex"
 
-    if (alwaysHideMixes && node.tagName == (isMobile ? "YTM-RADIO-RENDERER" : "YTD-COMPACT-RADIO-RENDERER")
-        || alwaysHideOngoingLives && videoType == "LIVE"
-        || alwaysHidePlaylists && node.tagName == "YT" + (isMobile ? "M" : "D") + "-COMPACT-PLAYLIST-RENDERER"
-        || alwaysHideMovies && node.tagName == "YTD-COMPACT-MOVIE-RENDERER")
+    if (!isSubscriptionsPage)
     {
-        node.style.display = "none"
-        node.classList.add("processed")
+        if (alwaysHideMixes && node.tagName == (isMobile ? "YTM-RADIO-RENDERER" : "YTD-COMPACT-RADIO-RENDERER")
+            || alwaysHideOngoingLives && videoType == "LIVE"
+            || alwaysHidePlaylists && node.tagName == "YT" + (isMobile ? "M" : "D") + "-COMPACT-PLAYLIST-RENDERER"
+            || alwaysHideMovies && node.tagName == "YTD-COMPACT-MOVIE-RENDERER")
+        {
+            node.style.display = "none"
+            node.classList.add("processed")
 
-        return
+            return
+        }
     }
 
 
@@ -408,15 +441,15 @@ async function processRecommendation(node, reprocess = false)
         videoChannel = node.querySelector(".ytd-channel-name#text").textContent
 
     if (isMobile || isHomepage)
-        videoUrl = cleanVideoUrl(videoTitleEll.parentElement.href)              // The mix playlists and the promoted videos include ID parameters, along with the video id,
-    else                                                                        // which changes everytime it's recommended. These IDs need to be ignored to filter it correctly.
-        videoUrl = cleanVideoUrl(node.querySelector(".details a").href)
+        videoUrl = cleanVideoUrl(videoTitleEll.parentElement.href)                      // The mix playlists and the promoted videos include ID parameters, along with the video id,
+    else                                                                                // which changes everytime it's recommended. These IDs need to be ignored to filter it correctly.
+        videoUrl = cleanVideoUrl(node.querySelector(".details a, #details a").href)
 
 
     // Because the recommendation's side-menu is separated from the recommendations container, this listens to clicks on each three-dot
     // button and store in a variable in what recommendation it was clicked, to then be used by the "Hide videos from this channel" button.
 
-    if (videoMenuBtn)
+    if (videoMenuBtn && !isSubscriptionsPage)
     {
         videoMenuBtn.onclick = function()
         {
@@ -437,44 +470,14 @@ async function processRecommendation(node, reprocess = false)
         if (!isHomepage && !filterRelated)
             return
 
-        hideOrDimm(node)
+        if (!isSubscriptionsPage && !videosNotToHideNow.includes(videoUrl))             // Prevent from hiding recommendations that reached the limit in the respective page. Otherwise, when the reprocess happen,
+            hideOrDimm(node)                                                            // these recommendations would get hidden even if the user didn't see them yet, specially after opening several tabs of videos.
 
         node.classList.add("processed")
     }
     else
     {
-        if (maxRepetitions > 1)
-        {
-            var value = await GM.getValue(videoUrl)
-
-            if (value)
-            {
-                if (reprocess)  value--
-
-                if (value >= maxRepetitions)
-                {
-                    if (!isHomepage && !filterRelated)
-                        return
-
-                    hideOrDimm(node)
-
-                    if (!isHomepage && !countRelated)
-                        return
-
-                    GM.deleteValue(videoUrl)
-                    GM.setValue("hide::"+videoUrl,"")
-
-                    if (!reprocess)
-                        processedVideosList.push("hide::"+videoUrl)
-
-                    node.classList.add("processed")
-
-                    return
-                }
-            }
-        }
-
-        if (!node.classList.contains("offView") && !reprocess)
+        if (!node.classList.contains("offView") && !node.className.includes("processed"))
         {
             node.classList.add("offView")               // Add this class to mark the recommendations waiting to be counted.
 
@@ -484,19 +487,26 @@ async function processRecommendation(node, reprocess = false)
         }
         else
         {
-            node.classList.remove("offView")
+            if (isHomepage || isMobile || source == "onViewObserver" || source == "onFocusFirstTrigger")
+            {
+                node.classList.remove("offView")
 
-            onViewObserver.unobserve(node)              // When the recommendation finally appears on the screen and is processed, stop observing it so it doesn't trigger the observer again.
+                onViewObserver.unobserve(node)              // When the recommendation finally appears on the screen and is processed, stop observing it so it doesn't trigger the observer again.
+            }
+            else return                         // If false, return to prevent incorrect countings.
         }
+
 
         if (maxRepetitions == 1)                // If the script is set to show only one-time recommendations, to avoid unnecessary processings,
         {                                       // rightaway mark to hide, in the next time the page is loaded, every video not found in the storage.
             if (!isHomepage && !countRelated)
                 return
 
-            if (videoType == "DEFAULT" || videoType == "UPCOMING" && filterPremier || videoType == "LIVE" && filterLives || !videoType)
+            if (videoType == "DEFAULT" || videoType == "UPCOMING" && countPremiere || videoType == "LIVE" && countLives || !videoType)
             {
                 GM.setValue("hide::"+videoUrl,"")
+
+                videosNotToHideNow.push(videoUrl)
 
                 if (!reprocess)
                     processedVideosList.push("hide::"+videoUrl)
@@ -506,23 +516,43 @@ async function processRecommendation(node, reprocess = false)
 
             return
         }
-
-
-        if (!isHomepage && !countRelated)
-            return
+        else
+            var value = await GM.getValue(videoUrl)
 
         if (!value)
             value = 1
         else
             value++
 
-        if (videoType == "DEFAULT" || videoType == "UPCOMING" && filterPremier || videoType == "LIVE" && filterLives || !videoType)
+        if (videoType == "DEFAULT" || videoType == "UPCOMING" && countPremiere || videoType == "LIVE" && countLives || !videoType)
         {
             if (!reprocess)
-                GM.setValue(videoUrl, value)
-        }
+            {
+                if (value >= maxRepetitions)
+                {
+                    if (!isHomepage && !countRelated)
+                        return
 
-        node.classList.add("processed")
+                    videosNotToHideNow.push(videoUrl)
+
+                    GM.deleteValue(videoUrl)
+                    GM.setValue("hide::"+videoUrl,"")
+
+                    processedVideosList.push("hide::"+videoUrl)
+
+                    node.classList.add("processed")
+
+                    return
+                }
+
+                if (!isHomepage && !countRelated)
+                    return
+
+                GM.setValue(videoUrl, value)
+
+                node.classList.add("processed")
+            }
+        }
     }
 }
 
@@ -533,7 +563,7 @@ function addRecommendationMenuItems()
     {
         const waitForRecommendationMenu = setInterval(function()
         {
-            const recommendationMenu = isMobile ? document.getElementById("menu") : document.querySelector((isHomepage ? "#" : ".") + "details #menu yt-icon")
+            const recommendationMenu = isMobile ? document.getElementById("menu") : document.querySelector("#details #menu yt-icon, .details #menu yt-icon")
 
             if (!recommendationMenu)
                 return
@@ -541,7 +571,10 @@ function addRecommendationMenuItems()
             clearInterval(waitForRecommendationMenu)
 
             if (document.getElementById("hideChannelButton") || document.getElementById("hidePartialTitleButton"))
+            {
+                resolve()
                 return
+            }
 
 
             if (isMobile)
@@ -571,7 +604,9 @@ function addRecommendationMenuItems()
                     clearInterval(waitForRecommendationMenuItem)
 
 
-                    recommendationMenuItem.parentElement.appendChild(hideChannelButton)
+                    if (!isSubscriptionsPage)
+                        recommendationMenuItem.parentElement.appendChild(hideChannelButton)
+
                     recommendationMenuItem.parentElement.appendChild(hidePartialTitleButton)
 
                     if (!isMenuReady)
