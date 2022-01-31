@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name            YouTube Similar Comments Hider
-// @version         1.7.2
+// @version         1.7.3
 // @description     Ensure originality in YouTube's comment section by hiding all sorts of repeated comments, copy-paste comments, repeated quotes from the video and saturated memes.
 // @author          BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
 // @copyright       2021+, BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
@@ -27,7 +27,7 @@ const customThreshold = 20
 
 let lightenSimilarComments = false           // If set to true, all similar comments will be dimmed (faded) instead of completely hidden.
 
-const rememberFilteredComments = true        // Whether the script should store locally every filtered comment from past videos to use them as a second layer of filtering.
+const rememberFilteredComments = false       // Whether the script should store locally every filtered comment from past videos to use them as a second layer of filtering.
                                              // This impacts performance over time. If set to false, only the comments in the current video are considered.
 //----------------------------------------
 
@@ -139,7 +139,7 @@ async function main()
             /* Create the hover styles for the menu items */
             {
                 const style = document.createElement("style")
-                style.innerHTML = "#toleranceMenu div div div:hover, #blockUser:hover { background-color: #e7e7e7 !important; }"
+                style.innerHTML = "#toleranceMenu div div div:hover, #blockUser:hover { background-color: var(--yt-spec-10-percent-layer) !important; }"
                 document.head.appendChild(style)
             }
 
@@ -148,11 +148,11 @@ async function main()
                 const toleranceMenuContainer = document.createElement("div")
                 toleranceMenuContainer.id = "toleranceMenu"
                 toleranceMenuContainer.innerHTML = "FILTER TOLERANCE"
-                toleranceMenuContainer.style = "width: 130px; height: 24px; margin-left: 50px; font-size: 14px; font-weight: 500; z-index: 99; cursor: pointer;"
+                toleranceMenuContainer.style = "color: var(--yt-spec-text-primary); width: 130px; height: 24px; margin-left: 50px; font-size: 14px; font-weight: 500; z-index: 99; cursor: pointer;"
                 toleranceMenuContainer.onclick = function() { this.lastChild.style.visibility = this.lastChild.style.visibility ? "" : "hidden"; event.stopPropagation() }
 
                 const dropdownContainer = document.createElement("div")
-                dropdownContainer.style = "background-color: white; width: max-content; margin-left: -15px; margin-top: 16px; border: lightgray 1px solid; border-radius: 3px; visibility: hidden;"
+                dropdownContainer.style = "background-color: var(--yt-spec-brand-background-solid); width: max-content; margin-left: -15px; margin-top: 16px; border: lightgray 1px solid; border-radius: 3px; visibility: hidden;"
 
                 var dropdownItemsContainer = document.createElement("div")
                 dropdownItemsContainer.style = "font-weight: initial; letter-spacing: 0.3px; padding-top: 7px;"
@@ -216,7 +216,7 @@ async function main()
             {
                 blockUserContainer = document.createElement("div")
                 blockUserContainer.id = "blockUser"
-                blockUserContainer.style = "background-color: white; font-size: 14px; text-align: left; padding: 8px 0px 8px 0px; cursor: pointer; margin-bottom: 8px; justify-self: left; width: 100%;"
+                blockUserContainer.style = "background-color: var(--yt-spec-brand-background-solid); color: var(--yt-spec-text-primary); font-size: 14px; text-align: left; padding: 8px 0px 8px 0px; cursor: pointer; margin-bottom: 8px; justify-self: left; width: 100%;"
                 blockUserContainer.innerHTML = "Block this user"
                 blockUserContainer.onclick = function()
                 {
@@ -225,8 +225,9 @@ async function main()
                         blockedUsers.push(selectedUser.href)
                         GM.setValue("blockedUsers", JSON.stringify(blockedUsers))
                         reprocessComments()
-                        document.body.click()     // Dismiss the menu.
                     }
+
+                    document.body.click()     // Dismiss the menu.
                 }
 
                 const blockUserIcon = document.createElement("span")
@@ -276,14 +277,14 @@ function createToleranceDropdownItem(text, toleranceLevel, container, title)
     item.onclick = function()
     {
         this.parentElement.querySelector("[style*='background-color']").style.backgroundColor = ""              // Remove the selection style from the previous selected item.
-        this.style.backgroundColor = "#e7e7e7"
+        this.style.backgroundColor = "var(--yt-spec-10-percent-layer)"
         this.parentElement.parentElement.style.visibility = "hidden !important"             // Hide the dropdown list when an item is selected.
 
         reprocessComments(getThreshold(toleranceLevel))
     }
 
     if (tolerance == toleranceLevel)
-        item.style.backgroundColor = "#e7e7e7"
+        item.style.backgroundColor = "var(--yt-spec-10-percent-layer)"
 
     container.appendChild(item)
 }
