@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name            YouTube Repeated Recommendations Hider
 // @description     Hide any videos that are recommended more than twice. You can also hide by channel or by partial title. Works on both YouTube's desktop and mobile layouts.
-// @version         2.3.0
+// @version         2.3.1
 // @author          BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
 // @copyright       2020+, BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
 // @homepage        https://github.com/hjk789/Userscripts/tree/master/YouTube-Repeated-Recommendations-Hider
@@ -112,10 +112,9 @@ if (dimWatchedVideos)
 }
 
 /* Create the desktop version's hover styles for the recommendation menu items */
-if (!isMobile)
 {
     const style = document.createElement("style")
-    style.innerHTML = "#hideChannelButton:hover, #hidePartialTitleButton:hover { background-color: #e7e7e7 !important; }"
+    style.innerHTML = "#hideChannelButton:hover, #hidePartialTitleButton:hover { background-color: var(--yt-spec-10-percent-layer) !important; }"
     document.head.appendChild(style)
 }
 
@@ -345,7 +344,6 @@ function main(isReprocess = false)
                             processRecommendation(relatedVideos[i], true, "onFocusReprocess")
                     }
                 }
-
             }
 
         }, 500)
@@ -356,7 +354,7 @@ function main(isReprocess = false)
         hideChannelButton = document.createElement(isMobile ? "button" : "div")
         hideChannelButton.id = "hideChannelButton"
         hideChannelButton.className = "menu-item-button"
-        hideChannelButton.style = !isMobile ? "background-color: white;	font-size: 14px; padding: 9px 0px 9px 56px;	cursor: pointer; min-width: max-content;" : ""
+        hideChannelButton.style = !isMobile ? "background-color: var(--yt-spec-brand-background-solid);	font-size: 14px; padding: 9px 0px 9px 56px;	cursor: pointer; min-width: max-content;" : ""
         hideChannelButton.innerHTML = "Hide videos from this channel"
         hideChannelButton.onclick = function()
         {
@@ -387,7 +385,7 @@ function main(isReprocess = false)
             document.body.click()
         }
 
-        hideChannelButton.style.cssText += "border-top: solid #ddd 1px;"
+        hideChannelButton.style.borderTop = "solid 1px var(--yt-spec-10-percent-layer, #ddd)"
     }
 }
 
