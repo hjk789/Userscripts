@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name            YouTube Clickbait-Buster
-// @version         1.0.1
+// @version         1.1.0
 // @description     Check whether it's worth watching a video by peeking it's content, viewing the thumbnail in full-size and displaying the full title. Works on both YouTube's desktop and mobile layouts.
 // @author          BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
 // @copyright       2022+, BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
@@ -17,6 +17,9 @@
 const numColumns = 1        // The video storyboard YouTube provides is divided in chunks of frames. Set this to the number of chunks per row you would like. Note that the size
                             // and the number of chunks per row is limited by your device's screen dimensions. You can open the chunk in a new tab to view it in full-size.
 
+const fullTitles = true     // Whether the videos' title should be forced to be displayed in full, without any trimmings. In case you are using any other userscript
+                            // or extension that changes YouTube's layout, set this to false if you see anything wrong in the layout, such as titles overlapping.
+
 //********************************
 
 
@@ -28,8 +31,11 @@ let isMenuReady = false
 /* Add the styles */
 {
     const style = document.createElement("style")
-    style.innerHTML = `#viewStoryboardButton:hover, #viewThumbnailButton:hover { background-color: #e7e7e7 !important; }    /* Add the desktop version's hover for the recommendation menu items */
-                       #video-title, h3, h4 { max-height: initial !important; -webkit-line-clamp: initial !important; }     /* The full video title style */`
+    style.innerHTML = "#viewStoryboardButton:hover, #viewThumbnailButton:hover { background-color: var(--yt-spec-10-percent-layer) !important; }"             // Add the desktop version's hover for the recommendation menu items
+
+    if (fullTitles)
+        style.innerHTML += "#video-title, h3, h4 { max-height: initial !important; -webkit-line-clamp: initial !important; }"                // The full video title style
+
     document.head.appendChild(style)
 }
 
@@ -55,7 +61,7 @@ let isMenuReady = false
     viewStoryboardButton = document.createElement(isMobile ? "button" : "div")
     viewStoryboardButton.id = "viewStoryboardButton"
     viewStoryboardButton.className = "menu-item-button"
-    viewStoryboardButton.style = !isMobile ? "background-color: white; font-size: 14px; padding: 9px 0px 9px 56px; cursor: pointer; min-width: max-content;" : ""
+    viewStoryboardButton.style = !isMobile ? "background-color: var(--yt-spec-brand-background-solid); font-size: 14px; padding: 9px 0px 9px 56px; cursor: pointer; min-width: max-content;" : ""
     viewStoryboardButton.innerHTML = "Peek video content"
     viewStoryboardButton.onclick = function()
     {
@@ -86,7 +92,7 @@ let isMenuReady = false
 
             const container = document.createElement("div")
             container.id = "storyboard"
-            container.style = "position: fixed; z-index: 9999; max-height: 100vh; max-width: 100.3vw; overflow-y: scroll; background-color: white; margin: auto; top: 0px; left: 0px; right: 0px;"
+            container.style = "position: fixed; z-index: 9999; width: min-content; max-height: 100vh; max-width: 100.3vw; overflow-y: scroll; background-color: white; margin: auto; top: 0px; left: 0px; right: 0px;"
             container.contentEditable = !isMobile                // Make the storyboards container focusable on the desktop layout. From all the other methods to achieve this, this is the only one that works reliably.
             container.onmousedown = function() { window.getSelection().removeAllRanges() }            // Because contentEditable is true, the storyboards become selectable. This prevents that by immediately deselecting them.
 
@@ -161,7 +167,7 @@ let isMenuReady = false
 
     }
 
-    viewStoryboardButton.style.borderTop = "solid #ddd 1px"             // Add a separator between Youtube's menu items and the ones added by the script.
+    viewStoryboardButton.style.borderTop = "solid 1px var(--yt-spec-10-percent-layer, #ddd)"             // Add a separator between Youtube's menu items and the ones added by the script.
 
 }
 
@@ -243,7 +249,7 @@ function addRecommendationMenuItems()
                 if (isChannelPage && !document.querySelector("ytd-guide-signin-promo-renderer"))             // In the channel page, when the user is signed in, Youtube already adds a separator at the bottom of the menu.
                     viewStoryboardButton.style.borderTop = ""                                                // This removes the separator when on these pages.
                 else
-                    viewStoryboardButton.style.borderTop = "solid #ddd 1px"                                  // And adds it back when the user switches to another non-channel page.
+                    viewStoryboardButton.style.borderTop = "solid 1px var(--yt-spec-10-percent-layer, #ddd)"                                  // And adds it back when the user switches to another non-channel page.
 
             }, 100)
         }
@@ -295,12 +301,10 @@ function createStoryboardImg(num, container, urlSplit, param, mode)
     img.style.margin = !isMobile && numColumns > 1 ? "1px" : ""             // Add a space between the storyboard chunks to make it easier to know where each chunk starts and ends.
     img.onload = function()
     {
-        if (!isMobile && !container.style.width && container.children.length > 1)
+        if (!isMobile && container.children.length == 2)
         {
             if (numColumns > 1)
                 container.style.width = 21 + this.clientWidth * numColumns + "px"
-            else
-                container.style.width = "min-content"
         }
 
         container.focus()
