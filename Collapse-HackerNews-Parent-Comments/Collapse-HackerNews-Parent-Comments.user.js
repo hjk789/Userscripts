@@ -3,7 +3,7 @@
 // @description     Adds vertical bars to the left of the comments, enabling you to easily collapse the parent comments. It also can leave only a specified number of comments expanded and auto-collapse the rest.
 // @author          BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
 // @copyright       2020+, BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
-// @version         1.2.5
+// @version         1.2.6
 // @homepage        https://github.com/hjk789/Userscripts/tree/master/Collapse-HackerNews-Parent-Comments
 // @license         https://github.com/hjk789/Userscripts/tree/master/Collapse-HackerNews-Parent-Comments#license
 // @grant           none
@@ -34,33 +34,44 @@ document.body.appendChild(fadeOnHoverStyle)
 const spacingImgs = document.querySelectorAll(".ind img[height='1']:not([width='14'])")
 
 let root = 0
-let i = spacingImgs.length-1                // It's required to loop backwards, otherwise the hidden comments reappear when collapsed.
+let index = spacingImgs.length-1        // It's required to loop backwards, otherwise the hidden comments reappear when collapsed.
 let commentHier = []
 
-const collapseAll = setInterval(function()              // An interval of 1ms is being used to prevent the page from freezing until it finishes. Also, it creates a cool effect when
-{                                                       // the comments are being collapsed. It does make it take a few more seconds to finish in comment-heavy posts (150+) though.
+if (autoCollapse)
+    var collapseAll = setInterval(function() { main(index, collapseAll) }, 1)     // An interval of 1ms is being used to prevent the page from freezing until it finishes collapsing. Also, it creates a cool effect
+else                                                                              // when the comments are being collapsed. It does make it take a few more seconds to finish in comment-heavy posts (150+) though.
+{
+    for (let j=0; j < spacingImgs.length; j++)        // Optimize the addition of the bars when the auto collapse is disabled.
+        main(j)
+}
+
+
+
+function main(i, collapseAll)
+{
     let commentContainer = spacingImgs[i].parentElement.parentElement.parentElement.parentElement.parentElement.parentElement
     commentContainer.firstChild.style = "border-top: 5px transparent solid"             // To visually separate each vertical bar.
     spacingImgs[i].parentElement.style = "position: relative"
 
     const clicky = commentContainer.querySelectorAll(".clicky:not(.togg)")              // HN added a scrolling animation to the hierarchy links, which breaks the script.
-    for (let i=0; i < clicky.length; i++)                                               // The animation is only applied to elements with the class "clicky".
-        clicky[i].className = clicky[i].className.replace("clicky","")                  // This removes the clicky class from every hierarchy link of the comment.
+    for (let j=0; j < clicky.length; j++)                                               // The animation is only applied to elements with the class "clicky".
+        clicky[j].className = clicky[j].className.replace("clicky","")                  // This removes the clicky class from every hierarchy link of the comment.
 
     if (autoCollapse && !commentContainer.classList.contains("coll"))               // Collapse only if it's not collapsed yet. This is for signed-in users, as HN remembers which comments were collapsed.
         commentContainer.querySelector(".togg").click()
 
+    index--
     i--
 
-    if (i == -1)                // When finished collapsing all comments, now it's time to add the bars.
+    if (i == -1 || i == spacingImgs.length-1)                // When finished collapsing all comments, now it's time to add the bars.
     {
         clearInterval(collapseAll)
 
-        for (i=0; i < spacingImgs.length; i++)
+        for (let i=0; i < spacingImgs.length; i++)
         {
             const level = spacingImgs[i].width / 40
             commentContainer = spacingImgs[i].parentElement.parentElement.parentElement.parentElement.parentElement.parentElement
-            const commentToggle = commentContainer.querySelector(".togg")
+            var commentToggle = commentContainer.querySelector(".togg")
 
 
             // Store the current hierarchy in an array
@@ -135,6 +146,4 @@ const collapseAll = setInterval(function()              // An interval of 1ms is
             }
         }
     }
-
-}, 1)
-
+}
