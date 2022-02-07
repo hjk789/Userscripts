@@ -92,7 +92,7 @@ const onViewObserver = new IntersectionObserver((entries) =>            // when 
     {
         if (entry.isIntersecting)
         {
-            if (isHomepage || isMobile || isTabActive)
+            if (isHomepage || isSubscriptionsPage || isMobile || isTabActive)
                 await processRecommendation(entry.target, false, "onViewObserver")
             else
                 firstTriggerVideos.push(entry.target)               // The intersection observer fires even when the tab is in the background. This stores in an array
