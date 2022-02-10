@@ -27,7 +27,10 @@ document.onkeyup = function(e)
 
 function changeSpeed(value, mode = "absolute")
 {
-    const medias = (window.self == window.top ? document : window.top.document).querySelectorAll("video, audio")
+    let medias = Array.from(document.querySelectorAll("video, audio"))
+    
+    try { medias = medias.concat(Array.from(window.top.document.querySelectorAll("video, audio"))) }
+    catch(e) {}
 
     for (let i=0; i < medias.length; i++)
         medias[i].playbackRate = (mode == "absolute" ? value : medias[i].playbackRate + value)
