@@ -3,7 +3,7 @@
 // @description     Enables you to change the speed of video and audio with hotkeys (even if the media is inside an iframe)
 // @author          BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
 // @copyright       2020+, BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
-// @version         1.2.1
+// @version         1.2.2
 // @homepage        https://github.com/hjk789/Userscripts/tree/master/Media-Speed-Changer
 // @license         https://github.com/hjk789/Userscripts/tree/master/Media-Speed-Changer#license
 // @grant           none
@@ -29,8 +29,11 @@ function changeSpeed(value, mode = "absolute")
 {
     let medias = Array.from(document.querySelectorAll("video, audio"))
     
-    try { medias = medias.concat(Array.from(window.top.document.querySelectorAll("video, audio"))) }
-    catch(e) {}
+    if (window.self != window.top)
+    {
+        try { medias = medias.concat(Array.from(window.top.document.querySelectorAll("video, audio"))) }
+        catch(e) {}
+    }
 
     for (let i=0; i < medias.length; i++)
         medias[i].playbackRate = (mode == "absolute" ? value : medias[i].playbackRate + value)
