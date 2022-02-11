@@ -25,11 +25,11 @@ document.onkeyup = function(e)
     else if (e.key == "Insert")                    changeSpeed(16)
 }
 
-function changeSpeed(value, mode = "absolute")
+function changeSpeed(value, mode = "absolute", source = "top")
 {
     let medias = Array.from(document.querySelectorAll("video, audio"))
     
-    if (window.self != window.top)
+    if (window.self != window.top && source == "top")
     {
         try { medias = medias.concat(Array.from(window.top.document.querySelectorAll("video, audio"))) }
         catch(e) {}
@@ -39,7 +39,7 @@ function changeSpeed(value, mode = "absolute")
         medias[i].playbackRate = (mode == "absolute" ? value : medias[i].playbackRate + value)
 
     for (let i=0; i < window.frames.length; i++)
-        window.frames[i].postMessage("changeSpeed(" + value + ",'" + mode + "')", "*")
+        window.frames[i].postMessage("changeSpeed(" + value + ",'" + mode + "', 'msg')", "*")
 }
 
 if (window.self == window.top)
