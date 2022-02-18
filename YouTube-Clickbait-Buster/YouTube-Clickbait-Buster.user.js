@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name            YouTube Clickbait-Buster
-// @version         1.2.0
+// @version         1.2.1
 // @description     Check whether it's worth watching a video by peeking it's content, viewing the thumbnail in full-size and displaying the full title. Works on both YouTube's desktop and mobile layouts.
 // @author          BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
 // @copyright       2022+, BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
@@ -146,7 +146,7 @@ let isMenuReady = false
 
             const transcriptContainer = document.createElement("div")
             transcriptContainer.style = "position: fixed; z-index: 9999; background-color: " + backgroundColor + "; color: var(--paper-listbox-color); font-size: 15px;" +
-                                        "max-height: 98vh; width: max-content; max-width: 94vw; overflow: scroll; top: 0; left: 0; right: 0; margin: auto; padding: 10px;"
+                                        "max-height: 90vh; width: max-content; max-width: 94vw; overflow: scroll; top: 0; left: 0; right: 0; margin: auto; padding: 10px;"
             transcriptContainer.onclick = function() { event.stopPropagation() }
 
             const transcriptLanguageLabel = document.createElement("div")
