@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name            YouTube Clickbait-Buster
-// @version         1.2.1
+// @version         1.4.0
 // @description     Check whether it's worth watching a video by peeking it's content, viewing the thumbnail in full-size and displaying the full title. Works on both YouTube's desktop and mobile layouts.
 // @author          BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
 // @copyright       2022+, BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
@@ -28,14 +28,14 @@ const preferredTranscriptLanguage = ""   // The two letters language-country cod
 
 
 let selectedVideoURL
-let viewStoryboardButton, viewThumbnailButton, viewTranscriptButton
+let viewStoryboardButton, viewThumbnailButton, viewTranscriptButton, viewChannelButton, viewCommentsButton
 const isMobile = !/www/.test(location.hostname)
 let isMenuReady = false
 
 /* Add the styles */
 {
     const style = document.createElement("style")
-    style.innerHTML = "#viewStoryboardButton:hover, #viewThumbnailButton:hover, #viewTranscriptButton:hover { background-color: var(--yt-spec-10-percent-layer) !important; }" +            // Add the desktop version's hover for the recommendation menu items
+    style.innerHTML = ".menu-item-button:hover { background-color: var(--yt-spec-10-percent-layer) !important; }" +            // Add the desktop version's hover for the recommendation menu items
                       "#transcriptTextContainer transcript { width: max-content; max-width: 96vw; display: block; left: 0; right: 0; position: relative; margin: auto; }" +
                       "transcript text { display: block; margin-top: 10px; }"
 
@@ -50,25 +50,22 @@ let isMenuReady = false
 {
     document.body.addEventListener("click", function()
     {
-        const storyboard = document.getElementById("storyboard")
+        const ids = ["storyboard","highresThumbnail","transcriptContainer","channelViewport","commentsContainer","closeButton"]
 
-        if (storyboard)  storyboard.remove()
+        for (let i=0; i<ids.length; i++)
+        {
+            const element = document.getElementById(ids[i])
 
-
-        const thumbnail = document.getElementById("highresThumbnail")
-
-        if (thumbnail)  thumbnail.remove()
-
-
-        const transcript = document.getElementById("transcriptTextContainer")
-
-        if (transcript)  transcript.parentElement.remove()
+            if (element)  element.remove()
+        }
     })
 }
 
 
 /* Create the "Peek video content" and "View high-res thumbnail" buttons */
 {
+    const backgroundColor = "var(--yt-spec-brand-background-solid, "+ getComputedStyle(document.documentElement).backgroundColor +")"               // This CSS variable holds the background color of either the light theme or dark theme, whatever is the current
+                                                                                                                                                    // one. But it's only available on desktop, on mobile the color need to be taken from the root element's CSS.
     viewStoryboardButton = document.createElement(isMobile ? "button" : "div")
     viewStoryboardButton.id = "viewStoryboardButton"
     viewStoryboardButton.className = "menu-item-button"
@@ -121,7 +118,6 @@ let isMenuReady = false
     }
 
     viewTranscriptButton = document.createElement(isMobile ? "button" : "div")
-    viewTranscriptButton.id = "viewTranscriptButton"
     viewTranscriptButton.className = viewStoryboardButton.className
     viewTranscriptButton.style = viewStoryboardButton.style.cssText
     viewTranscriptButton.innerHTML = "Peek audio transcription"
@@ -142,11 +138,11 @@ let isMenuReady = false
 
             transcriptObj = JSON.parse(unescape(decodeURI(transcriptObj[1])).replaceAll("\\u0026","&"))
 
-            const backgroundColor = "var(--yt-spec-brand-background-solid, "+ getComputedStyle(document.documentElement).backgroundColor +")"
-
             const transcriptContainer = document.createElement("div")
+            transcriptContainer.id = "transcriptContainer"
             transcriptContainer.style = "position: fixed; z-index: 9999; background-color: " + backgroundColor + "; color: var(--paper-listbox-color); font-size: 15px;" +
-                                        "max-height: 90vh; width: max-content; max-width: 94vw; overflow: scroll; top: 0; left: 0; right: 0; margin: auto; padding: 10px;"
+                                        "width: max-content; max-width: 94vw; overflow: scroll; top: 0; left: 0; right: 0; margin: auto; padding: 10px;"
+            transcriptContainer.style.maxHeight = isMobile ? "90vh" : "98vh"
             transcriptContainer.onclick = function() { event.stopPropagation() }
 
             const transcriptLanguageLabel = document.createElement("div")
@@ -249,6 +245,99 @@ let isMenuReady = false
         document.body.click()
     }
 
+    viewCommentsButton = document.createElement(isMobile ? "button" : "div")
+    viewCommentsButton.className = viewStoryboardButton.className
+    viewCommentsButton.style = viewStoryboardButton.style.cssText
+    viewCommentsButton.innerHTML = "Peek comments"
+    viewCommentsButton.onclick = function()
+    {
+        const xhr = new XMLHttpRequest()
+        xhr.open('GET', selectedVideoURL)
+        xhr.onload = function()
+        {
+            const apiKey = xhr.responseText.match(/"INNERTUBE_API_KEY":"(.+?)"/)[1]
+            const token = xhr.responseText.match(isMobile ? /\\x22continuationCommand\\x22:\\x7b\\x22token\\x22:\\x22(\w+)\\x22/ : /"continuationCommand":{"token":"(.+?)"/)[1]
+
+            const pageName = selectedVideoURL.includes("/shorts/") ? "browse" : "next"
+
+            const xhrComments = new XMLHttpRequest()
+            xhrComments.open('POST', "https://www.youtube.com/youtubei/v1/"+ pageName +"?prettyPrint=false&key="+ apiKey)
+            xhrComments.onload = function()
+            {
+                const commentsContainer = document.createElement("div")
+                commentsContainer.id = "commentsContainer"
+                commentsContainer.style = "position: fixed; top: 0; left: 0; right: 0; z-index: 9999; margin: auto; width: 700px; max-width: 94vw; max-height: 97vh; overflow-y: scroll;"+
+                                          "padding: 10px; border: 1px solid lightgray; background-color: "+ backgroundColor +"; color: var(--paper-listbox-color); font-size: 15px;"
+                document.body.appendChild(commentsContainer)
+
+                const comments = [...xhrComments.responseText.matchAll(/contentText":({.+?}),"publishedTimeText"/g)]                // Instead of JSON.parse-ing the entire response (which is huge), take only the relevant parts and then JSON.parse them.
+
+                for (let i=0; i < comments.length; i++)
+                {
+                    const commentContents = JSON.parse(comments[i][1]).runs
+                    let commentText = ""
+
+                    for (let j=0; j < commentContents.length; j++)                          // Every line, link, text formatations, and even emojis, of each comment,
+                        commentText += commentContents[j].text                              // are all in separated strings. This appends them all in one string.
+
+                    const commentTextContainer = document.createElement("div")
+                    commentTextContainer.innerText = commentText
+                    commentTextContainer.style = "border-bottom: 1px solid lightgray; margin-bottom: 10px; padding-bottom: 10px;"
+                    commentTextContainer.onclick = function() { event.stopPropagation() }
+                    commentsContainer.appendChild(commentTextContainer)
+                }
+
+                if (isMobile)
+                {
+                    const closeButton = document.createElement("div")
+                    closeButton.id = "closeButton"
+                    closeButton.innerText = "X"
+                    closeButton.style = "position: fixed; width: 25px; top: 5px; right: 5px; z-index: 99999; background-color: #ddd8; border-radius: 7px; padding: 10px 15px; text-align: center; font-size: 25px;"
+                    closeButton.onclick = function() { document.body.click(); this.remove() }
+                    document.body.appendChild(closeButton)
+                }
+
+            }
+            xhrComments.send('{ "context": { "client": { "clientName": "WEB", "clientVersion": "2.2022021" } }, "continuation": "'+ token +'" }')                // This is the bare minimum to be able to get the comments list.
+        }
+        xhr.send()
+
+        document.body.click()
+    }
+
+    viewChannelButton = document.createElement(isMobile ? "button" : "div")
+    viewChannelButton.className = viewStoryboardButton.className
+    viewChannelButton.style = viewStoryboardButton.style.cssText
+    viewChannelButton.innerHTML = "Peek channel"
+    viewChannelButton.onclick = function()
+    {
+        const xhr = new XMLHttpRequest()
+        xhr.open('GET', selectedVideoURL)
+        xhr.onload = function()
+        {
+            const channelId = xhr.responseText.match(/"channelId":"(.+?)"/)
+
+            const channelViewport = document.createElement("iframe")
+            channelViewport.id = "channelViewport"
+            channelViewport.style = "width: 720px; max-width: 100vw; height: 100vh; z-index: 9999; position: fixed; top: 0; left: 0; right: 0; margin: auto;"
+            channelViewport.src = "https://www.youtube.com/channel/" + channelId[1]
+
+            if (isMobile)
+            {
+                const closeButton = document.createElement("div")
+                closeButton.innerText = "X"
+                closeButton.style = "position: fixed; width: 25px; top: 5px; right: 5px; z-index: 99999; background-color: #ddd; border-radius: 7px; padding: 10px 15px; text-align: center; font-size: 25px;"
+                closeButton.onclick = function() { document.body.click(); this.remove() }
+                document.body.appendChild(closeButton)
+            }
+
+            document.body.appendChild(channelViewport)
+        }
+        xhr.send()
+
+        document.body.click()
+    }
+
     viewThumbnailButton = document.createElement(isMobile ? "button" : "div")
     viewThumbnailButton.id = "viewThumbnailButton"
     viewThumbnailButton.className = viewStoryboardButton.className
@@ -263,7 +352,7 @@ let isMenuReady = false
         else
             this.parentElement.click()              // On mobile, the menu creates a backdrop above the body which is only dismissed when clicked. Clicking the body element doesn't work in this case.
 
-        const videoId = cleanVideoUrl(selectedVideoURL).split("=")[1]
+        const videoId = cleanVideoUrl(selectedVideoURL).split(/=|shorts\//)[1]
 
         const img = document.createElement("img")
         img.id = "highresThumbnail"
@@ -319,9 +408,10 @@ main()
 function main()
 {
     const videosSelector = isMobile ? "ytm-rich-item-renderer, ytm-video-with-context-renderer, ytm-compact-video-renderer, ytm-compact-playlist-renderer, ytm-compact-show-renderer, ytm-playlist-video-renderer"
-                                    : "ytd-rich-item-renderer, ytd-grid-video-renderer, ytd-compact-video-renderer, ytd-compact-playlist-renderer, ytd-compact-movie-renderer, ytd-playlist-video-renderer, ytd-video-renderer, ytd-compact-radio-renderer"
+                                    : "ytd-rich-item-renderer, ytd-grid-video-renderer, ytd-compact-video-renderer, ytd-compact-playlist-renderer, ytd-compact-movie-renderer, ytd-playlist-video-renderer, ytd-reel-item-renderer, ytd-video-renderer, ytd-compact-radio-renderer"
 
-    addRecommendationMenuItems()
+    if (!isMobile)
+        addRecommendationMenuItems()
 
     document.body.addEventListener("mousedown", function()                // Process all video items every time the user clicks anywhere on the page. Although not
     {                                                                     // ideal, it's the most guaranteed way of working reliably regardless of the situation.
@@ -351,6 +441,8 @@ function addRecommendationMenuItems()
         {
             recommendationMenu.firstChild.appendChild(viewStoryboardButton)
             recommendationMenu.firstChild.appendChild(viewTranscriptButton)
+            recommendationMenu.firstChild.appendChild(viewCommentsButton)
+            recommendationMenu.firstChild.appendChild(viewChannelButton)
             recommendationMenu.firstChild.appendChild(viewThumbnailButton)
         }
         else
@@ -367,7 +459,7 @@ function addRecommendationMenuItems()
 
             const waitForRecommendationMenuItem = setInterval(function()
             {
-                const recommendationMenuItem = optionsParent.querySelector("ytd-menu-service-item-renderer")
+                const recommendationMenuItem = optionsParent.querySelector("ytd-menu-service-item-renderer, ytd-menu-navigation-item-renderer")
 
                 if (!recommendationMenuItem)
                     return
@@ -377,6 +469,8 @@ function addRecommendationMenuItems()
 
                 recommendationMenuItem.parentElement.appendChild(viewStoryboardButton)
                 recommendationMenuItem.parentElement.appendChild(viewTranscriptButton)
+                recommendationMenuItem.parentElement.appendChild(viewCommentsButton)
+                recommendationMenuItem.parentElement.appendChild(viewChannelButton)
                 recommendationMenuItem.parentElement.appendChild(viewThumbnailButton)
 
                 if (!isMenuReady)
@@ -408,16 +502,7 @@ function processVideoItem(node)
         return
 
 
-    let videoUrl = videoTitleEll.href
-
-    if (!videoUrl)
-    {
-        videoUrl = videoTitleEll.parentElement.href
-
-        if (!videoUrl)
-            videoUrl = videoTitleEll.parentElement.parentElement.href
-    }
-
+    let videoUrl = videoTitleEll.href || videoTitleEll.parentElement.href || videoTitleEll.parentElement.parentElement.href
 
     const videoMenuBtn = node.querySelector(isMobile ? "ytm-menu" : "ytd-menu-renderer")
 
@@ -509,6 +594,9 @@ function loadTranscript(url)
 function cleanVideoUrl(fullUrl)
 {
     const urlSplit = fullUrl.split("?")                 // Separate the page path from the parameters.
+
+    if (!urlSplit[1])  return fullUrl
+
     const paramsSplit = urlSplit[1].split("&")          // Separate each parameter.
 
     for (let i=0; i < paramsSplit.length; i++)
