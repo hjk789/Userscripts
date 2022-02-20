@@ -253,7 +253,7 @@ let isMenuReady = false
         const xhr = new XMLHttpRequest()
         xhr.open('GET', selectedVideoURL)
         xhr.onload = function() {
-            alert(xhr.responseText.match(/"shortDescription":"(.+?)"/)[1].replaceAll("\\n","\n"))
+            alert(xhr.responseText.match(/"shortDescription":"(.+?)"/)[1].replaceAll("\\n","\n").replaceAll("\\r","\r"))
         }
         xhr.send()
 
