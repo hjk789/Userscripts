@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name            YouTube Clickbait-Buster
-// @version         1.4.0
+// @version         1.5.0
 // @description     Check whether it's worth watching a video by peeking it's content, viewing the thumbnail in full-size and displaying the full title. Works on both YouTube's desktop and mobile layouts.
 // @author          BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
 // @copyright       2022+, BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
@@ -28,7 +28,6 @@ const preferredTranscriptLanguage = ""   // The two letters language-country cod
 
 
 let selectedVideoURL
-let viewStoryboardButton, viewThumbnailButton, viewTranscriptButton, viewChannelButton, viewCommentsButton
 const isMobile = !/www/.test(location.hostname)
 let isMenuReady = false
 
@@ -62,11 +61,11 @@ let isMenuReady = false
 }
 
 
-/* Create the "Peek video content" and "View high-res thumbnail" buttons */
+/* Create the menu buttons */
 {
     const backgroundColor = "var(--yt-spec-brand-background-solid, "+ getComputedStyle(document.documentElement).backgroundColor +")"               // This CSS variable holds the background color of either the light theme or dark theme, whatever is the current
                                                                                                                                                     // one. But it's only available on desktop, on mobile the color need to be taken from the root element's CSS.
-    viewStoryboardButton = document.createElement(isMobile ? "button" : "div")
+    var viewStoryboardButton = document.createElement(isMobile ? "button" : "div")
     viewStoryboardButton.id = "viewStoryboardButton"
     viewStoryboardButton.className = "menu-item-button"
     viewStoryboardButton.style = !isMobile ? "background-color: var(--yt-spec-brand-background-solid); font-size: 14px; padding: 9px 0px 9px 56px; cursor: pointer; min-width: max-content;" : ""
@@ -117,7 +116,7 @@ let isMenuReady = false
         document.body.click()     // Dismiss the menu.
     }
 
-    viewTranscriptButton = document.createElement(isMobile ? "button" : "div")
+    var viewTranscriptButton = document.createElement(isMobile ? "button" : "div")
     viewTranscriptButton.className = viewStoryboardButton.className
     viewTranscriptButton.style = viewStoryboardButton.style.cssText
     viewTranscriptButton.innerHTML = "Peek audio transcription"
@@ -245,7 +244,23 @@ let isMenuReady = false
         document.body.click()
     }
 
-    viewCommentsButton = document.createElement(isMobile ? "button" : "div")
+    var viewDescriptionButton = document.createElement(isMobile ? "button" : "div")
+    viewDescriptionButton.className = viewStoryboardButton.className
+    viewDescriptionButton.style = viewStoryboardButton.style.cssText
+    viewDescriptionButton.innerHTML = "Peek description"
+    viewDescriptionButton.onclick = function()
+    {
+        const xhr = new XMLHttpRequest()
+        xhr.open('GET', selectedVideoURL)
+        xhr.onload = function() {
+            alert(xhr.responseText.match(/"shortDescription":"(.+?)"/)[1].replaceAll("\\n","\n"))
+        }
+        xhr.send()
+
+        document.body.click()
+    }
+
+    var viewCommentsButton = document.createElement(isMobile ? "button" : "div")
     viewCommentsButton.className = viewStoryboardButton.className
     viewCommentsButton.style = viewStoryboardButton.style.cssText
     viewCommentsButton.innerHTML = "Peek comments"
@@ -305,7 +320,7 @@ let isMenuReady = false
         document.body.click()
     }
 
-    viewChannelButton = document.createElement(isMobile ? "button" : "div")
+    var viewChannelButton = document.createElement(isMobile ? "button" : "div")
     viewChannelButton.className = viewStoryboardButton.className
     viewChannelButton.style = viewStoryboardButton.style.cssText
     viewChannelButton.innerHTML = "Peek channel"
@@ -338,7 +353,7 @@ let isMenuReady = false
         document.body.click()
     }
 
-    viewThumbnailButton = document.createElement(isMobile ? "button" : "div")
+    var viewThumbnailButton = document.createElement(isMobile ? "button" : "div")
     viewThumbnailButton.id = "viewThumbnailButton"
     viewThumbnailButton.className = viewStoryboardButton.className
     viewThumbnailButton.style = viewStoryboardButton.style.cssText
@@ -411,7 +426,7 @@ function main()
                                     : "ytd-rich-item-renderer, ytd-grid-video-renderer, ytd-compact-video-renderer, ytd-compact-playlist-renderer, ytd-compact-movie-renderer, ytd-playlist-video-renderer, ytd-reel-item-renderer, ytd-video-renderer, ytd-compact-radio-renderer"
 
     if (!isMobile)
-        addRecommendationMenuItems()
+        addMenuItems()
 
     document.body.addEventListener("mousedown", function()                // Process all video items every time the user clicks anywhere on the page. Although not
     {                                                                     // ideal, it's the most guaranteed way of working reliably regardless of the situation.
@@ -422,16 +437,16 @@ function main()
     })
 }
 
-function addRecommendationMenuItems()
+function addMenuItems()
 {
-    const waitForRecommendationMenu = setInterval(function()
+    const waitForMenu = setInterval(function()
     {
-        const recommendationMenu = isMobile ? document.getElementById("menu") : document.querySelector("#details #menu yt-icon, .details #menu yt-icon, #title-wrapper #menu yt-icon, ytd-playlist-video-renderer #menu yt-icon")
+        const menu = isMobile ? document.getElementById("menu") : document.querySelector("#details #menu yt-icon, .details #menu yt-icon, #title-wrapper #menu yt-icon, ytd-playlist-video-renderer #menu yt-icon")
 
-        if (!recommendationMenu)
+        if (!menu)
             return
 
-        clearInterval(waitForRecommendationMenu)
+        clearInterval(waitForMenu)
 
         if (document.getElementById("viewStoryboardButton") || document.getElementById("viewThumbnailButton"))              // Only add the menu items if they aren't present already.
             return
@@ -439,44 +454,46 @@ function addRecommendationMenuItems()
 
         if (isMobile)
         {
-            recommendationMenu.firstChild.appendChild(viewStoryboardButton)
-            recommendationMenu.firstChild.appendChild(viewTranscriptButton)
-            recommendationMenu.firstChild.appendChild(viewCommentsButton)
-            recommendationMenu.firstChild.appendChild(viewChannelButton)
-            recommendationMenu.firstChild.appendChild(viewThumbnailButton)
+            menu.firstChild.appendChild(viewStoryboardButton)
+            menu.firstChild.appendChild(viewTranscriptButton)
+            menu.firstChild.appendChild(viewDescriptionButton)
+            menu.firstChild.appendChild(viewCommentsButton)
+            menu.firstChild.appendChild(viewChannelButton)
+            menu.firstChild.appendChild(viewThumbnailButton)
         }
         else
         {
             if (!document.querySelector("ytd-menu-popup-renderer"))
             {
-                recommendationMenu.click()
-                recommendationMenu.click()              // The recommendation menu doesn't exist in the HTML before it's clicked for the first time. This forces it to be created and dismisses it immediately.
+                menu.click()
+                menu.click()              // The recommendation menu doesn't exist in the HTML before it's clicked for the first time. This forces it to be created and dismisses it immediately.
             }
 
             const optionsParent = document.querySelector("ytd-menu-popup-renderer")
             optionsParent.style = "max-height: max-content !important; max-width: max-content !important; height: max-content !important; width: 260px !important;"                // Change the max width and height so that the new items fit in the menu.
             optionsParent.firstElementChild.style = "width: inherit;"
 
-            const waitForRecommendationMenuItem = setInterval(function()
+            const waitForMenuItem = setInterval(function()
             {
-                const recommendationMenuItem = optionsParent.querySelector("ytd-menu-service-item-renderer, ytd-menu-navigation-item-renderer")
+                const menuItem = optionsParent.querySelector("ytd-menu-service-item-renderer, ytd-menu-navigation-item-renderer")
 
-                if (!recommendationMenuItem)
+                if (!menuItem)
                     return
 
-                clearInterval(waitForRecommendationMenuItem)
+                clearInterval(waitForMenuItem)
 
 
-                recommendationMenuItem.parentElement.appendChild(viewStoryboardButton)
-                recommendationMenuItem.parentElement.appendChild(viewTranscriptButton)
-                recommendationMenuItem.parentElement.appendChild(viewCommentsButton)
-                recommendationMenuItem.parentElement.appendChild(viewChannelButton)
-                recommendationMenuItem.parentElement.appendChild(viewThumbnailButton)
+                menuItem.parentElement.appendChild(viewStoryboardButton)
+                menuItem.parentElement.appendChild(viewTranscriptButton)
+                menuItem.parentElement.appendChild(viewDescriptionButton)
+                menuItem.parentElement.appendChild(viewCommentsButton)
+                menuItem.parentElement.appendChild(viewChannelButton)
+                menuItem.parentElement.appendChild(viewThumbnailButton)
 
                 if (!isMenuReady)
                 {
-                    recommendationMenu.click()              // The menu doesn't apply the width and height adjustments the first time it's opened, but it
-                    recommendationMenu.click()              // does on the second time. This forces the menu to be opened again and dismisses it immediately.
+                    menu.click()              // The menu doesn't apply the width and height adjustments the first time it's opened, but it
+                    menu.click()              // does on the second time. This forces the menu to be opened again and dismisses it immediately.
 
                     isMenuReady = true
                 }
@@ -515,7 +532,7 @@ function processVideoItem(node)
         {
             selectedVideoURL = videoUrl
 
-            addRecommendationMenuItems()
+            addMenuItems()
         }
     }
 }
