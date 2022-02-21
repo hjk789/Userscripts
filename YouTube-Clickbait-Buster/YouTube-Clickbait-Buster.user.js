@@ -34,7 +34,7 @@ let isMenuReady = false
 /* Add the styles */
 {
     const style = document.createElement("style")
-    style.innerHTML = ".menu-item-button:hover { background-color: var(--yt-spec-10-percent-layer) !important; }" +            // Add the desktop version's hover for the recommendation menu items
+    style.innerHTML = ".menu-item-button:hover { background-color: #aaa5 !important; }" +            // Add the desktop version's hover for the recommendation menu items
                       "#transcriptTextContainer transcript { width: max-content; max-width: 96vw; display: block; left: 0; right: 0; position: relative; margin: auto; }" +
                       "transcript text { display: block; margin-top: 10px; }"
 
@@ -412,7 +412,7 @@ let isMenuReady = false
     }
 
 
-    viewStoryboardButton.style.borderTop = "solid 1px var(--yt-spec-10-percent-layer, #ddd)"             // Add a separator between Youtube's menu items and the ones added by the script.
+    viewStoryboardButton.style.borderTop = "solid 1px #aaa5"             // Add a separator between Youtube's menu items and the ones added by the script.
 
 }
 
@@ -503,7 +503,7 @@ function addMenuItems()
                 if (isChannelOrPlaylistPage && document.querySelector("ytd-topbar-menu-button-renderer #avatar-btn"))             // In the channel page, when the user is signed in, Youtube already adds a separator at the bottom of the menu.
                     viewStoryboardButton.style.borderTop = ""                                                                     // This removes the separator when on these pages.
                 else
-                    viewStoryboardButton.style.borderTop = "solid 1px var(--yt-spec-10-percent-layer, #ddd)"                      // And adds it back when the user switches to another non-channel page.
+                    viewStoryboardButton.style.borderTop = "solid 1px #aaa5"                      // And adds it back when the user switches to another non-channel page.
 
             }, 100)
         }
@@ -599,7 +599,7 @@ function loadTranscript(url)
 
             const timestamp = document.createElement("a")
             timestamp.href = selectedVideoURL + "&t=" + seconds
-            timestamp.style = "background-color: var(--yt-spec-10-percent-layer); color: var(--paper-listbox-color); padding: 2px 5px 1px 5px; margin-right: 10px; text-decoration: none;"
+            timestamp.style = "background-color: #aaa5; color: var(--paper-listbox-color); padding: 2px 5px 1px 5px; margin-right: 10px; text-decoration: none;"
             timestamp.innerText = time
 
             lines[i].insertBefore(timestamp, lines[i].firstChild)
