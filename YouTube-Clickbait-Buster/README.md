@@ -30,7 +30,7 @@ You can click the timestamp to open the video directly in the part you are inter
 
 Some videos add a summary of the video content in the description, and others elaborate a little more on what the video is about, which is an alternative for confirming the video's subject.
 
-![transcript](https://i.imgur.com/OxcN0lr.png)
+![transcript](https://i.imgur.com/5mQnZrA.png)
 
 ### Peek comments
 
