@@ -22,7 +22,7 @@ If you don't like scrolling too much, you can change in the script the number of
 
 While the "Peek video content" feature enables you to check the *visual* content of the video, the "Peek audio transcription" feature enables you to check the *verbal* content. This is most useful for videos that are just someone talking about something, or videos that you don't know exactly what it is about and you just need to peek the first few spoken sentences where the presenter explains it. 
 
-![transcript](https://i.imgur.com/HGWMjju.png) ![transcript mobile](https://i.imgur.com/0sVhexI.png)
+![transcript](https://i.imgur.com/hjOWDMI.png) ![transcript mobile](https://i.imgur.com/dex9PPF.png)
 
 You can click the timestamp to open the video directly in the part you are interested in. You also have the option of choosing a language to which the transcript should be translated, and in the script settings you can set a preferred language which the transcript should always be in.
 
@@ -36,7 +36,7 @@ Some videos add a summary of the video content in the description, and others el
 
 The "Peek comments" feature makes you able to check what the viewers think of the video in a minimalist interface. 
 
-![comments](https://i.imgur.com/dhAeSG5.png) ![comments mobile](https://i.imgur.com/FldI5Q2.png)
+![comments](https://i.imgur.com/2OtOsC8.png) ![comments mobile](https://i.imgur.com/TcFUjf8.png)
 
 This is useful for cases when there's something clearly incorrect in the video and at least someone in the comments points that out, or when you're not really interested in the video, but only in what people say about the subject. This can also be used as an alternative method for confirming what the video is about or its content.
 
