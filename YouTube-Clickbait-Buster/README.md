@@ -44,7 +44,7 @@ This is useful for cases when there's something clearly incorrect in the video a
 
 When you peek a channel a small viewport is opened so you can take a look on the video's channel content and even watch videos without leaving the page. 
 
-![channel](https://i.imgur.com/aIFhqz6.png) ![channel mobile](https://i.imgur.com/ti3tmSD.png)
+![channel](https://i.imgur.com/07GeP8o.png) ![channel mobile](https://i.imgur.com/ti3tmSD.png)
 
 This is useful to make sure whether you can hide the whole channel from your recommendations, or just to take a look on the channel's other videos.
 
