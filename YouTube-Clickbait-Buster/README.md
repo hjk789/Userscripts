@@ -14,9 +14,9 @@ To do that, you just need to click on the recommended video's menu (the three do
 
 When you peek the video content, the script shows you the video's storyboard, which is a series of snapshots from the video in different moments from the beginning to the end.
 
-![storyboard](https://i.imgur.com/FSFZt0s.png)
+![storyboard](https://i.imgur.com/ejBtNzY.png)
 
-If you don't like scrolling too much, you can change in the script the number of columns to your preference, so you can view more frames at once. Just note that it's limited by your device's screen size.
+You can click the timestamps to open the video directly in the part you are interested in. Also, if you don't like scrolling too much, you can change in the script the number of columns to your preference, so you can view more frames at once. Just note that it's limited by your device's screen size.
 
 ### Peek audio transcription
 
@@ -24,7 +24,7 @@ While the "Peek video content" feature enables you to check the *visual* content
 
 ![transcript](https://i.imgur.com/hjOWDMI.png) ![transcript mobile](https://i.imgur.com/dex9PPF.png)
 
-You can click the timestamp to open the video directly in the part you are interested in. You also have the option of choosing a language to which the transcript should be translated, and in the script settings you can set a preferred language which the transcript should always be in.
+You can click the timestamps to open the video directly in the part you are interested in. You also have the option of choosing a language to which the transcript should be translated, and in the script settings you can set a preferred language which the transcript should always be in.
 
 ### Peek description
 
@@ -38,13 +38,13 @@ The "Peek comments" feature makes you able to check what the viewers think of th
 
 ![comments](https://i.imgur.com/2OtOsC8.png) ![comments mobile](https://i.imgur.com/TcFUjf8.png)
 
-This is useful for cases when there's something clearly incorrect in the video and at least someone in the comments points that out, or when you're not really interested in the video, but only in what people say about the subject. This can also be used as an alternative method for confirming what the video is about or its content.
+In the script settings you have the option of choosing the default sorting of the comments. Peeking the comments is useful for cases when there's something clearly incorrect in the video and at least someone in the comments points that out, or when you're not really interested in the video, but only in what people say about the subject. This can also be used as an alternative method for confirming what the video is about or its content.
 
 ### Peek channel
 
 When you peek a channel a small viewport is opened so you can take a look on the video's channel content and even watch videos without leaving the page. 
 
-![channel](https://i.imgur.com/07GeP8o.png) ![channel mobile](https://i.imgur.com/ti3tmSD.png)
+![channel](https://i.imgur.com/07GeP8o.png) ![channel mobile](https://i.imgur.com/cFS1HwL.png)
 
 This is useful to make sure whether you can hide the whole channel from your recommendations, or just to take a look on the channel's other videos.
 
