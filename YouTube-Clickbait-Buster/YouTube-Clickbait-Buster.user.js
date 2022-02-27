@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name            YouTube Clickbait-Buster
-// @version         1.5.0
+// @version         1.8.0
 // @description     Check whether it's worth watching a video before actually clicking on it by peeking it's visual or verbal content, description, comments, viewing the thumbnail in full-size and displaying the full title. Works on both YouTube's desktop and mobile layouts, and is also compatible with dark theme.
 // @author          BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
 // @copyright       2022+, BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
@@ -14,7 +14,7 @@
 
 //*********** SETTINGS ***********
 
-const numColumns = 1                     // The video storyboard YouTube provides is divided in chunks of frames. Set this to the number of chunks per row you would like. Note that the size
+const numberChunkColumns = 1             // The video storyboard YouTube provides is divided in chunks of frames. Set this to the number of chunks per row you would like. Note that the size
                                          // and the number of chunks per row is limited by your device's screen dimensions. You can open the chunk in a new tab to view it in full-size.
 
 const fullTitles = true                  // Whether the videos' title should be forced to be displayed in full, without any trimmings. In case you are using any other userscript
@@ -24,39 +24,44 @@ const preferredTranscriptLanguage = ""   // The two letters language-country cod
                                          // for Spain's Spanish, es-ES, and so on. If there's no subtitles in the specified language, another language (if any) will be selected
                                          // and then translated to the specified language. If left blank, the language most likely to be the original is selected.
 
+const sortByTopComments = true           // Whether the comments popup should be sorted by "Top comments". If set to false, it will be sorted by "Newest first".
+
 //********************************
 
 
 let selectedVideoURL
 const isMobile = !/www/.test(location.hostname)
-let isMenuReady = false
+let isMenuReady = false, hasSpace
 
 /* Add the styles */
 {
     const style = document.createElement("style")
-    style.innerHTML = ".menu-item-button:hover { background-color: #aaa5 !important; }" +            // Add the desktop version's hover for the recommendation menu items
-                      "#transcriptTextContainer transcript { width: max-content; max-width: 96vw; display: block; left: 0; right: 0; position: relative; margin: auto; }" +
-                      "transcript text { display: block; margin-top: 10px; }"
+    style.innerHTML = ".menu-item-button:hover { background-color: #aaa5 !important; }" +            // Add the desktop version's hover for the recommendation menu items.
+                      "transcript text { display: block; margin-top: 10px; }" +                      // Separate each line of the transcript. By default the transcript lines are displayed in a single continuous line.
+                      ".naturalWidth > div > div { opacity: 0.8 !important; }" +                     // Make the timestamps more opaque when there's enough screen space for the image to be displayed in full size.
+                      ".hasSpace > div { margin: 1px !important; }"                                  // Add a margin around chunks to visually separate them when there's enough space for more than one column.
 
     if (fullTitles)
-        style.innerHTML += "#video-title, h3, h4 { max-height: initial !important; -webkit-line-clamp: initial !important; }"                // The full video title style
+        style.innerHTML += "#video-title, h3, h4 { max-height: initial !important; -webkit-line-clamp: initial !important; }"                // The full video title style.
 
     document.head.appendChild(style)
 }
 
 
-/* Remove the storyboard and thumbnail when the page is clicked */
+/* Remove the popups when the page is clicked */
 {
     document.body.addEventListener("click", function()
     {
         const ids = ["storyboard","highresThumbnail","transcriptContainer","channelViewport","commentsContainer","closeButton"]
 
-        for (let i=0; i<ids.length; i++)
+        for (let i=0; i < ids.length; i++)
         {
             const element = document.getElementById(ids[i])
 
             if (element)  element.remove()
         }
+
+        hasSpace = undefined
     })
 }
 
@@ -76,7 +81,7 @@ let isMenuReady = false
         xhr.open('GET', selectedVideoURL)
         xhr.onload = function()
         {
-            const fullStoryboardURL = xhr.responseText.match(/playerStoryboardSpecRenderer.+?"(https.+?)"}/)
+            const fullStoryboardURL = xhr.responseText.match(/"playerStoryboardSpecRenderer":.+?"(https.+?)"}/)
 
             if (!fullStoryboardURL || fullStoryboardURL[1].includes("googleadservices"))                // It can happen sometimes that the storyboard provided is of the ad, instead of the video itself.
             {                                                                                           // But this seems to only happen on videos that don't have a storyboard available anyway.
@@ -97,19 +102,26 @@ let isMenuReady = false
 
             const storyboardId = urlSplit[mode].replace(/.+#rs/, "&sigh=rs")
 
-            const container = document.createElement("div")
-            container.id = "storyboard"
-            container.style = "position: fixed; z-index: 9999; width: min-content; max-height: 100vh; max-width: 100.3vw; overflow-y: scroll; background-color: white; margin: auto; top: 0px; left: 0px; right: 0px;"
-            container.contentEditable = !isMobile                // Make the storyboards container focusable on the desktop layout. From all the other methods to achieve this, this is the only one that works reliably.
-            container.onmousedown = function() { window.getSelection().removeAllRanges() }            // Because contentEditable is true, the storyboards become selectable. This prevents that by immediately deselecting them.
+            const storyboardContainer = document.createElement("div")
+            storyboardContainer.id = "storyboard"
+            storyboardContainer.style = "position: fixed; z-index: 9999; display: grid; width: min-content; max-width: 100.3vw; overflow-y: inherit; background-color: white; margin: auto; top: 0px; left: 0px; right: 0px;"
+            storyboardContainer.style.maxHeight = isMobile ? "91.4vh" : "100vh"
+            storyboardContainer.contentEditable = !isMobile                // Make the storyboards container focusable on the desktop layout. From all the other methods to achieve this, this is the only one that works reliably.
+            storyboardContainer.onmousedown = function() {
+                window.getSelection().removeAllRanges()                    // Because contentEditable is true, the storyboards become selectable. This prevents that by immediately deselecting them.
+            }
 
-            document.body.appendChild(container)
+            document.body.appendChild(storyboardContainer)
+
 
             if (mode == 3)  mode--
 
             let num = 0
 
-            createStoryboardImg(num, container, urlSplit, storyboardId, mode)
+            const videoLength = +xhr.responseText.match(/"lengthSeconds":"(\d+)","ownerProfileUrl/)[1]
+            const secondsGap = videoLength <= 120 ? 1 : videoLength <= 300 ? 2 : videoLength < 900 ? 5 : 10                     // Depending on the video length, YouTube takes snapshots with different time spaces.
+
+            createStoryboardImg(num, storyboardContainer, urlSplit, storyboardId, mode, videoLength, secondsGap)
         }
         xhr.send()
 
@@ -253,7 +265,7 @@ let isMenuReady = false
         const xhr = new XMLHttpRequest()
         xhr.open('GET', selectedVideoURL)
         xhr.onload = function() {
-            alert(xhr.responseText.match(/"shortDescription":"(.+?)"/)[1].replaceAll("\\n","\n").replaceAll("\\r","\r"))
+            alert(xhr.responseText.match(/"shortDescription":"(.+?)[^\\]"/)[1].replaceAll("\\n","\n").replaceAll("\\r","\r").replaceAll("\\",""))
         }
         xhr.send()
 
@@ -271,8 +283,9 @@ let isMenuReady = false
         xhr.onload = function()
         {
             const apiKey = xhr.responseText.match(/"INNERTUBE_API_KEY":"(.+?)"/)[1]
-            const token = xhr.responseText.match(isMobile ? /\\x22continuationCommand\\x22:\\x7b\\x22token\\x22:\\x22(\w+)\\x22/ : /"continuationCommand":{"token":"(.+?)"/)[1]
-
+            let token = xhr.responseText.match(isMobile ? /\\x22continuationCommand\\x22:\\x7b\\x22token\\x22:\\x22(\w+)\\x22/ : /"continuationCommand":{"token":"(.+?)"/)[1]
+            token = sortByTopComments ? token.replace("dzAB", "dzAA") : token.replace("dzAA", "dzAB")                                                                           // One single character in the token is responsible for determining the sorting
+                                                                                                                                                                                // of the comments, being A the "Top comments" and B the "Newest first".
             const pageName = selectedVideoURL.includes("/shorts/") ? "browse" : "next"
 
             const xhrComments = new XMLHttpRequest()
@@ -281,8 +294,9 @@ let isMenuReady = false
             {
                 const commentsContainer = document.createElement("div")
                 commentsContainer.id = "commentsContainer"
-                commentsContainer.style = "position: fixed; top: 0; left: 0; right: 0; z-index: 9999; margin: auto; width: 700px; max-width: 94vw; max-height: 97vh; overflow-y: scroll;"+
+                commentsContainer.style = "position: fixed; top: 0; left: 0; right: 0; z-index: 9999; margin: auto; width: 700px; max-width: 94vw; overflow-y: scroll;"+
                                           "padding: 10px; border: 1px solid lightgray; background-color: "+ backgroundColor +"; color: var(--paper-listbox-color); font-size: 15px;"
+                commentsContainer.style.maxHeight = isMobile ? "92vh" : "97vh"
                 document.body.appendChild(commentsContainer)
 
                 const comments = [...xhrComments.responseText.matchAll(/contentText":({.+?}),"publishedTimeText"/g)]                // Instead of JSON.parse-ing the entire response (which is huge), take only the relevant parts and then JSON.parse them.
@@ -335,13 +349,14 @@ let isMenuReady = false
             const channelViewport = document.createElement("iframe")
             channelViewport.id = "channelViewport"
             channelViewport.style = "width: 720px; max-width: 100vw; height: 100vh; z-index: 9999; position: fixed; top: 0; left: 0; right: 0; margin: auto;"
+            channelViewport.style.height = isMobile ? "91vh" : "100vh"
             channelViewport.src = "https://www.youtube.com/channel/" + channelId[1]
 
             if (isMobile)
             {
                 const closeButton = document.createElement("div")
                 closeButton.innerText = "X"
-                closeButton.style = "position: fixed; width: 25px; top: 5px; right: 5px; z-index: 99999; background-color: #ddd; border-radius: 7px; padding: 10px 15px; text-align: center; font-size: 25px;"
+                closeButton.style = "position: fixed; width: 25px; top: 0px; left: 0px; z-index: 99999; background-color: #ddd; border-radius: 7px; padding: 10px 15px; text-align: center; font-size: 25px;"
                 closeButton.onclick = function() { document.body.click(); this.remove() }
                 document.body.appendChild(closeButton)
             }
@@ -435,6 +450,13 @@ function main()
         for (let i=0; i < videoItems.length; i++)
             processVideoItem(videoItems[i])
     })
+
+
+    window.onresize = function() { checkScreenSpaceAndAdaptStoryboard() }
+    screen.orientation.onchange = function() { checkScreenSpaceAndAdaptStoryboard() }
+
+
+
 }
 
 function addMenuItems()
@@ -537,44 +559,155 @@ function processVideoItem(node)
     }
 }
 
-function createStoryboardImg(num, container, urlSplit, param, mode)
+function createStoryboardImg(num, storyboardContainer, urlSplit, param, mode, videoLength, secondsGap, lastTime = 0)
 {
+    const chunkContainer = document.createElement("div")
+    chunkContainer.style = "position: relative; display: inline-block; width: min-content;"
+    chunkContainer.contentEditable = false
+
+    const timestampsContainer = document.createElement("div")
+    timestampsContainer.style = "position: absolute; display: grid; width: 100%; align-items: self-end;"+
+                                "justify-items: end; pointer-events: none; opacity: 0.4;"
+
+    chunkContainer.appendChild(timestampsContainer)
+
+
     const base = urlSplit[0].replace("L$L/$N","L"+mode+"/M"+num++)              // The storyboard URL uses the "L#/M#" parameter to determine the type and part of the storyboard to load. L1 is the
     const img = document.createElement("img")                                   // storyboard chunk with 60 frames, and L2 is the one with 25 frames. M0 is the first chunk, M1 the second, and so on.
     img.src = base+param
-    img.style = "vertical-align: top; max-width: 100vw;"
-    img.style.margin = !isMobile && numColumns > 1 ? "1px" : ""             // Add a space between the storyboard chunks to make it easier to know where each chunk starts and ends.
+    img.style.verticalAlign = "top"
+    img.style.maxWidth = isMobile ? "100vw" : "97.6vw"
     img.onload = function()
     {
-        if (!isMobile && container.children.length == 2)
+        const firstImg = storyboardContainer.firstChild.lastChild
+        const framesWidth = firstImg.naturalWidth / 5
+        const framesHeight = firstImg.naturalHeight / 5
+
+        timestampsContainer.style.height = this.height < firstImg.height ? this.height + "px" : "100%"
+
+        const numColumns = Math.round(this.naturalWidth / framesWidth)
+        let numRows = Math.round(this.naturalHeight / framesHeight)
+
+        if (videoLength < 20)
+            numRows = videoLength < 5 ? 1 : videoLength < 10 ? 2 : videoLength < 15 ? 3 : 4
+
+        for (let i=0; i < numRows; i++)
         {
-            if (numColumns > 1)
-                container.style.width = 21 + this.clientWidth * numColumns + "px"
+            for (let j=0; j < numColumns; j++)
+            {
+                let seconds = 0
+
+                if (i || j || storyboardContainer.children.length > 1)                      // Only calculate the gap if it's not the first timestamp of the first chunk.
+                    seconds = lastTime += secondsGap
+
+                if (seconds > videoLength)
+                    seconds = videoLength
+
+                const date = new Date(null)
+                date.setSeconds(seconds)
+                const time = seconds >= 3600 ? date.toISOString().substr(11, 8) : date.toISOString().substr(14, 5)                      // If the timestamp is above 1 hour, include the hours digit in the timestamp.
+
+                const timestamp = document.createElement("a")
+                timestamp.href = selectedVideoURL + "&t=" + seconds
+                timestamp.style = "padding: 0px 2px; border-radius: 2px; background-color: #222; color: white;" +
+                                  "font-weight: 500; font-size: 11px; text-decoration: none; pointer-events: auto;"
+
+                timestamp.innerText = time
+
+                timestampsContainer.style.cssText += "grid-template-columns: repeat("+ numColumns +", 1fr); grid-template-rows: repeat("+ numRows +", 1fr);"
+
+                timestampsContainer.appendChild(timestamp)
+
+                if (seconds == videoLength)
+                    break
+
+            }
         }
 
-        container.focus()
 
-        createStoryboardImg(num, container, urlSplit, param, mode)              // Keep loading the storyboard chunks until there's no more left.
+        if (storyboardContainer.children.length == 2 && hasSpace == undefined)
+            checkScreenSpaceAndAdaptStoryboard()
+
+
+        storyboardContainer.focus()
+
+        createStoryboardImg(num, storyboardContainer, urlSplit, param, mode, videoLength, secondsGap, lastTime)                     // Keep loading the storyboard chunks until there's no more left.
     }
     img.onerror = function()
     {
-        if (container.clientHeight < document.documentElement.clientHeight)
-            container.style.overflowY = "auto"
+        storyboardContainer.style.overflowY = storyboardContainer.scrollHeight < screen.height ? "hidden" : "scroll"                    // Hide the scrollbar when there's not enough chunks to overflow. It's needs to be either
+                                                                                                                                        // scroll or hidden, as in the auto mode the scrollbar stays on top of the image.
+        storyboardContainer.contentEditable = false
 
-        container.contentEditable = false
-
-        if (container.children.length == 1)
+        if (storyboardContainer.children.length == 1)
         {
             alert("Storyboard not available for this video!")
 
-            container.remove()
+            storyboardContainer.remove()
         }
 
-        this.remove()
+        this.parentElement.remove()
+
+        checkScreenSpaceAndAdaptStoryboard()
     }
 
-    container.appendChild(img)
 
+    chunkContainer.appendChild(img)
+
+    storyboardContainer.appendChild(chunkContainer)
+}
+
+function checkScreenSpaceAndAdaptStoryboard(numChunkColumns = numberChunkColumns)
+{
+    const storyboardContainer = document.getElementById("storyboard")
+
+    if (!storyboardContainer)
+        return
+
+    const firstImg = storyboardContainer.firstChild.lastChild
+
+    if (numberChunkColumns > 1 && numChunkColumns > 0)
+    {
+        if (storyboardContainer.children.length > 1)
+        {
+            if (firstImg.naturalWidth == firstImg.width)                        // If the chunk is in it's full size.
+            {
+                const containerSize = (isMobile ? 2 : 21) + firstImg.naturalWidth * numChunkColumns
+
+                hasSpace = screen.width > containerSize
+
+                if (hasSpace)
+                {
+                    storyboardContainer.style.gridTemplateColumns = "repeat("+ numChunkColumns +", 1fr)"
+
+                    if (numChunkColumns > 1)
+                        storyboardContainer.classList.add("hasSpace")
+                }
+                else
+                {
+                    storyboardContainer.classList.remove("hasSpace")
+
+                    checkScreenSpaceAndAdaptStoryboard(numChunkColumns-1)                       // If the specified number of columns doesn't fit in the screen, fallback to one less column and try again, until a number that fits is found.
+                }
+            }
+        }
+    }
+
+    if (storyboardContainer.style.overflowY != "inherit")                       // Only auto-adapt the storyboard after it finished loading all chunks.
+    {
+        const lastChunk = storyboardContainer.lastChild
+        const lastImg = lastChunk.lastChild
+
+        lastChunk.firstChild.style.height = lastImg.height <= firstImg.height ? lastImg.height-1 + "px" : "100%"
+
+
+        storyboardContainer.style.overflowY = storyboardContainer.scrollHeight < screen.height ? "hidden" : "scroll"
+    }
+
+    if (firstImg.naturalWidth - firstImg.width < 50)
+        storyboardContainer.classList.add("naturalWidth")
+    else
+        storyboardContainer.classList.remove("naturalWidth")
 }
 
 function loadTranscript(url)
@@ -585,7 +718,9 @@ function loadTranscript(url)
     {
         const transcriptTextContainer = document.getElementById("transcriptTextContainer")
 
-        transcriptTextContainer.innerHTML = xhr.responseText.replaceAll("&amp;#39;", "'").replaceAll("&amp;quot;", '"')
+        transcriptTextContainer.innerHTML = xhr.responseText.replaceAll("&amp;#39;", "'").replaceAll("&amp;quot;", '"').replaceAll("&amp;", '&')
+
+        transcriptTextContainer.firstElementChild.style = "width: max-content; max-width: 96vw; display: block; left: 0; right: 0; position: relative; margin: auto;"
 
         const lines = transcriptTextContainer.firstElementChild.children
 
