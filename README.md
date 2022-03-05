@@ -19,7 +19,7 @@ Enables you to change the speed of video and audio with hotkeys (even if the vid
 
 ## [YouTube Clickbait-Buster](https://github.com/hjk789/Userscripts/tree/master/YouTube-Clickbait-Buster)
 
-Check whether it's worth watching a video by peeking it's content, viewing the thumbnail in full-size and displaying the full title. Works on both YouTube's desktop and mobile layouts. [Read more](https://github.com/hjk789/Userscripts/tree/master/YouTube-Clickbait-Buster)
+Check whether it's worth watching a video before actually clicking on it by peeking it's visual or verbal content, description, comments, viewing the thumbnail in full-size and displaying the full title. Works on both YouTube's desktop and mobile layouts, and is also compatible with dark theme. [Read more](https://github.com/hjk789/Userscripts/tree/master/YouTube-Clickbait-Buster)
 
 [Install link](https://greasyfork.org/scripts/439305-youtube-clickbait-buster/code/YouTube%20Clickbait-Buster.user.js)
 
