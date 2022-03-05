@@ -36,9 +36,9 @@ Some videos add a summary of the video content in the description, and others el
 
 The "Peek comments" feature makes you able to check what the viewers think of the video in a minimalist interface. 
 
-![comments](https://i.imgur.com/2OtOsC8.png) ![comments mobile](https://i.imgur.com/TcFUjf8.png)
+![comments](https://i.imgur.com/OpDaAz6.png) ![comments mobile](https://i.imgur.com/zONBcYx.png)
 
-In the script settings you have the option of choosing the default sorting of the comments. Peeking the comments is useful for cases when there's something clearly incorrect in the video and at least someone in the comments points that out, or when you're not really interested in the video, but only in what people say about the subject. This can also be used as an alternative method for confirming what the video is about or its content.
+Peeking the comments is useful for cases when there's something clearly incorrect in the video and at least someone in the comments points that out, or when you're not really interested in the video, but only in what people say about the subject. This can also be used as an alternative method for confirming what the video is about or its content.
 
 ### Peek channel
 
