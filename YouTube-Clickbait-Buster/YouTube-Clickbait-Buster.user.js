@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name            YouTube Clickbait-Buster
-// @version         1.10.0
+// @version         1.10.1
 // @description     Check whether it's worth watching a video before actually clicking on it by peeking it's visual or verbal content, description, comments, viewing the thumbnail in full-size and displaying the full title. Works on both YouTube's desktop and mobile layouts, and is also compatible with dark theme.
 // @author          BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
 // @copyright       2022+, BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
@@ -504,8 +504,11 @@ function addMenuItems()
             const menu = document.getElementById("viewStoryboardButton").parentElement.parentElement                                                                            // YouTube resets the menu size everytime it's opened,
             menu.style = "max-height: max-content !important; max-width: max-content !important; height: max-content !important; width: max-content !important;"                // so the script needs to force max size right after.
 
-            if (menu.firstElementChild.getBoundingClientRect().bottom > screen.height)                      // If the menu is opened when there's little vertical space, the menu's bottom will be displayed
-                menu.parentElement.parentElement.style.top = "0"                                            // out of bounds. This forces the menu to be displayed at the top of the page when that happens.
+            const bottomValue = menu.firstElementChild.getBoundingClientRect().bottom
+            const menuContainer = menu.parentElement.parentElement.style
+
+            if (bottomValue > screen.height)                                                                      // If the menu is opened when there's little vertical space or the menu items were removed, the menu's
+                menuContainer.top = parseInt(menuContainer.top) - (bottomValue - screen.height + 10) + "px"       // bottom will be displayed out of bounds. This forces the menu to be moved up when that happens.
 
             return
         }
@@ -556,6 +559,12 @@ function addMenuItems()
 
                     isMenuReady = true
                 }
+
+                const bottomValue = menuItem.parentElement.getBoundingClientRect().bottom
+                const menuContainer = optionsParent.parentElement.parentElement.style
+
+                if (bottomValue > screen.height)
+                    menuContainer.top = parseInt(menuContainer.top) - (bottomValue - screen.height + 10) + "px"
 
                 const isChannelOrPlaylistPage = location.pathname.includes("/channel/") || location.pathname.includes("/user/") || location.pathname.includes("/c/") || location.pathname == "/playlist"
 
