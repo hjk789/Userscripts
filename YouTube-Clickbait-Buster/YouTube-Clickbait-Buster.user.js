@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name            YouTube Clickbait-Buster
-// @version         1.10.1
+// @version         1.10.2
 // @description     Check whether it's worth watching a video before actually clicking on it by peeking it's visual or verbal content, description, comments, viewing the thumbnail in full-size and displaying the full title. Works on both YouTube's desktop and mobile layouts, and is also compatible with dark theme.
 // @author          BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
 // @copyright       2022+, BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
@@ -244,7 +244,7 @@ extendFunctions()
 
                 if (isMobile)
                 {
-                    const closeButton = transcriptContainer.createElement("div",
+                    const closeButton = transcriptContainer.createElment("div",
                     {
                         innerText: "X",
                         style: "position: sticky; width: 25px; float: right; bottom: 0px; background-color: #f0f0f0ab; border-radius: 7px; padding: 10px 15px; text-align: center; font-size: 25px;",
@@ -312,9 +312,9 @@ extendFunctions()
                 commentsContainer.style.maxHeight = isMobile ? "92vh" : "97vh"
                 commentsContainer.onclick = function() { event.stopPropagation() }
 
-                const sortingDropdownLabel = commentsContainer.createElement("span", {innerText: "Sort by: "})
+                const sortingDropdownLabel = commentsContainer.createElment("span", {innerText: "Sort by: "})
 
-                const sortingDropdown = sortingDropdownLabel.createElement("select",
+                const sortingDropdown = sortingDropdownLabel.createElment("select",
                 {
                     style: "background-color: " + backgroundColor + "; color: var(--paper-listbox-color); border: 1px solid lightgray; border-radius: 5px; padding: 3px; margin-bottom: 10px; margin-left: 5px;",
                     onchange: function()
@@ -327,21 +327,21 @@ extendFunctions()
                     }
                 })
 
-                sortingDropdown.createElement("option", {innerText: "Top comments", value: "A"})
-                sortingDropdown.createElement("option", {innerText: "Newest first", value: "B"})
+                sortingDropdown.createElment("option", {innerText: "Top comments", value: "A"})
+                sortingDropdown.createElment("option", {innerText: "Newest first", value: "B"})
 
                 sortingDropdown.value = sortByTopComments ? "A" : "B"
 
 
-                const commentsTextContainer = commentsContainer.createElement("div", {style: "border-top: 1px solid lightgray; padding-top: 10px;"})
+                const commentsTextContainer = commentsContainer.createElment("div", {style: "border-top: 1px solid lightgray; padding-top: 10px;"})
 
                 document.body.appendChild(commentsContainer)
 
                 if (isMobile)
                 {
-                    const closeButtonPositionContainer = commentsContainer.createElement("div", {style: "position: relative; right: 55px;"}, true)
-                    const closeButtonContainer = closeButtonPositionContainer.createElement("div", {style: "position: absolute; right: 0px;"})
-                    const closeButton = closeButtonContainer.createElement("div",
+                    const closeButtonPositionContainer = commentsContainer.createElment("div", {style: "position: relative; right: 55px;"}, true)
+                    const closeButtonContainer = closeButtonPositionContainer.createElment("div", {style: "position: absolute; right: 0px;"})
+                    const closeButton = closeButtonContainer.createElment("div",
                     {
                         innerText: "X",
                         style: "position: fixed; width: 25px; z-index: 99999; background-color: #ddd8; border-radius: 7px; padding: 10px 15px; text-align: center; font-size: 25px;",
@@ -370,13 +370,13 @@ extendFunctions()
             {
                 const channelId = xhr.responseText.match(/"channelId":"(.+?)"/)
 
-                const channelViewportContainer = document.body.createElement("div",
+                const channelViewportContainer = document.body.createElment("div",
                 {
                     id: "channelViewportContainer",
                     style: "position: fixed; width: 720px; max-width: 100vw; height: "+ (isMobile ? "91vh" : "100vh") +"; top: 0; left: 0px; right: 0px; z-index: 9999; margin: auto; background-color: "+ backgroundColor +";"
                 })
 
-                const channelViewport = channelViewportContainer.createElement("iframe",
+                const channelViewport = channelViewportContainer.createElment("iframe",
                 {
                     style: "width: calc(100% - 4px); height: 100%;",
                     src: "https://www.youtube.com/channel/" + channelId[1]
@@ -384,7 +384,7 @@ extendFunctions()
 
                 if (isMobile)
                 {
-                    const closeButton = channelViewportContainer.createElement("div",
+                    const closeButton = channelViewportContainer.createElment("div",
                     {
                         innerText: "X",
                         style: "position: absolute; width: 25px; top: 0px; z-index: 99999; background-color: #ddd; border-radius: 7px; padding: 10px 15px; text-align: center; font-size: 25px;",
@@ -851,7 +851,7 @@ function loadCommentsOrReplies(container, pageName, apiKey, token, isReplies = f
             {
                 const replyToken = commentData.replies.commentRepliesRenderer.contents[0].continuationItemRenderer.continuationEndpoint.continuationCommand.token
 
-                const showRepliesButton = commentTextContainer.createElement("span",
+                const showRepliesButton = commentTextContainer.createElment("span",
                 {
                     style: "display: block; margin-top: 10px; color: #065fd4; font-weight: 500; cursor: pointer; font-size: 14px;",
                     innerText: "▾ Show replies",
@@ -872,7 +872,7 @@ function loadCommentsOrReplies(container, pageName, apiKey, token, isReplies = f
                     }
                 })
 
-                const repliesContainer = commentTextContainer.createElement("div")
+                const repliesContainer = commentTextContainer.createElment("div")
             }
 
             container.appendChild(commentTextContainer)
@@ -883,7 +883,7 @@ function loadCommentsOrReplies(container, pageName, apiKey, token, isReplies = f
 
 function extendFunctions()
 {
-    Node.prototype.createElement = function(name, attributesObj, insertBeforeFirst) { return createElement(name, attributesObj, this, insertBeforeFirst) }
+    Node.prototype.createElment = function(name, attributesObj, insertBeforeFirst) { return createElement(name, attributesObj, this, insertBeforeFirst) }
 }
 
 function createElement(name, attributesObj, container, insertBeforeFirst)
