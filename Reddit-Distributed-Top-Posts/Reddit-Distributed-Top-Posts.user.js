@@ -13,8 +13,10 @@
 
 //*********** SETTINGS ***********
 
-const subs = ["funny", "videos", "aww"]     // The list of subreddits to gather the posts from. You must use the sub's id (the one after the r/).
+const subs = ["funny", "gifs", "aww"]       // The list of subreddits to gather the posts from. You must use the sub's id (the one after the r/).
                                             // You can specify as many communities as you want, you just need to follow the syntax ["Sub1", "Sub2"]
+
+const timeWindow = "day"                    // The time window of the top posts. Accepted values are "hour", "day", "week", "month", "year" and "alltime".
 
 const maxQuality = 720                      // Reddit provides multiple resolutions for the same video or image. The script will load the videos and images
                                             // in a quality as close as possible to the one you specified. Accepted qualities are 240, 360, 480, 720 and 1080.
@@ -33,7 +35,7 @@ async function main()
         await new Promise(resolve =>
         {
             const xhr = new XMLHttpRequest()
-            xhr.open("GET", "https://gateway.reddit.com/desktopapi/v1/subreddits/"+subs[i]+"?t=day&sort=top")
+            xhr.open("GET", "https://gateway.reddit.com/desktopapi/v1/subreddits/"+subs[i]+"?t="+timeWindow+"&sort=top")
             xhr.onload = function()
             {
                 const response = JSON.parse(xhr.responseText)
@@ -117,9 +119,15 @@ async function main()
             {
                 const isGifv = post.media.type == "gifvideo"
                 const videoRoot = isGifv ? post.media.videoPreview : post.media
+                let videoUrl
+
+                if (isGifv && !videoRoot)
+                    videoUrl = post.media.content
+                else
+                    videoUrl = videoRoot.scrubberThumbSource.replace("_96.", (videoRoot.height > maxQuality ? "_"+ maxQuality +"." : "_"+videoRoot.height+"."))
 
                 const video = document.createElement("video")
-                video.src = videoRoot.scrubberThumbSource.replace("_96.", (videoRoot.height > maxQuality ? "_"+ maxQuality +"." : "_"+videoRoot.height+"."))
+                video.src = videoUrl
                 video.style = style
                 video.controls = true
                 video.onloadeddata = ()=> checkAndResize(this, true)
