@@ -13,7 +13,7 @@
 
 //*********** SETTINGS ***********
 
-const subs = ["funny", "gifs", "aww"]       // The list of subreddits to gather the posts from. You must use the sub's id (the one after the r/).
+const subs = ["memes", "gifs", "aww"]       // The list of subreddits to gather the posts from. You must use the sub's id (the one after the r/).
                                             // You can specify as many communities as you want, you just need to follow the syntax ["Sub1", "Sub2"]
 
 const timeWindow = "day"                    // The time window of the top posts. Accepted values are "hour", "day", "week", "month", "year" and "alltime".
@@ -24,40 +24,61 @@ const maxQuality = 720                      // Reddit provides multiple resoluti
 
 
 
-main()
+const responsesPerSub = []
+let loading = false
 
-async function main()
+const container = document.createElement("div")
+container.style = "position: fixed; z-index: 999; inset: 0px; margin: auto; height: 100vh; width: min(900px,100vw); overflow-y: scroll; background: white;"
+container.onscroll = async function()
 {
-    const responsesPerSub = []
-
-    for (let i=0; i < subs.length; i++)
+    if (!loading && this.scrollTop > this.scrollTopMax - window.innerHeight * 3)
     {
-        await new Promise(resolve =>
-        {
-            const xhr = new XMLHttpRequest()
-            xhr.open("GET", "https://gateway.reddit.com/desktopapi/v1/subreddits/"+subs[i]+"?t="+timeWindow+"&sort=top")
-            xhr.onload = function()
-            {
-                const response = JSON.parse(xhr.responseText)
+        loading = true
 
-                response.postIds = response.postIds.filter((a)=> !a.includes("="))
-
-                responsesPerSub.push(response)
-
-                resolve()
-            }
-            xhr.send()
-        })
+        loadNextPage()
     }
+}
+document.body.appendChild(container)
 
 
-    const container = document.createElement("div")
-    container.style = "position: fixed; z-index: 999; inset: 0px; margin: auto; height: 100vh; width: min(900px,100vw); overflow-y: scroll; background: white;"
-    document.body.appendChild(container)
 
+loadPosts()
+
+
+
+async function loadPosts()
+{
+    for (let i=0; i < subs.length; i++)
+        await fetchSubredditPosts(subs[i])
+
+    processPosts()
+}
+
+function fetchSubredditPosts(subName, after)
+{
+    return new Promise(resolve =>
+    {
+        const xhr = new XMLHttpRequest()
+        xhr.open("GET", "https://gateway.reddit.com/desktopapi/v1/subreddits/"+subName+"?limit=5&sort=top&t="+timeWindow+"&after="+after)
+        xhr.onload = function()
+        {
+            const response = JSON.parse(xhr.responseText)
+
+            response.postIds = response.postIds.filter((a)=> !a.includes("="))
+
+            responsesPerSub.push(response)
+
+            resolve()
+        }
+        xhr.send()
+    })
+}
+
+function processPosts()
+{
     const style = "max-width: calc(100% - 6px); max-height: min(100vh,720px); object-fit: contain; inset: 0; margin: 15px auto; border: 3px lightgray solid; border-radius: 25px; display: block;"
 
-    for (let i=0; i < 30; i++)
+    for (let i=0; i < 5; i++)
     {
         for (let j=0; j < responsesPerSub.length; j++)
         {
@@ -87,7 +108,7 @@ async function main()
                 const img = document.createElement("img")
                 img.src = mediaUrl
                 img.style = style
-                img.onload = ()=> checkAndResize(this)
+                img.onload = function() { checkAndResize(this) }
                 container.appendChild(img)
             }
             else if (post.media.type == "gallery")
@@ -111,17 +132,17 @@ async function main()
                     const img = document.createElement("img")
                     img.src = mediaUrl
                     img.style = style
-                    img.onload = ()=> checkAndResize(this)
+                    img.onload = function() { checkAndResize(this) }
                     container.appendChild(img)
                 })
             }
-            else if (post.media.type == "video" || post.media.type == "gifvideo")
+            else if (post.media.type.includes("video") || post.media.type == "embed")
             {
-                const isGifv = post.media.type == "gifvideo"
-                const videoRoot = isGifv ? post.media.videoPreview : post.media
+                const isVideo = post.media.type == "video"
+                const videoRoot = isVideo ? post.media : post.media.videoPreview
                 let videoUrl
 
-                if (isGifv && !videoRoot)
+                if (!videoRoot)
                     videoUrl = post.media.content
                 else
                     videoUrl = videoRoot.scrubberThumbSource.replace("_96.", (videoRoot.height > maxQuality ? "_"+ maxQuality +"." : "_"+videoRoot.height+"."))
@@ -130,9 +151,25 @@ async function main()
                 video.src = videoUrl
                 video.style = style
                 video.controls = true
-                video.onloadeddata = ()=> checkAndResize(this, true)
+                video.onloadeddata = function() { checkAndResize(this, true) }
+                video.onerror = function()
+                {
+                    video.onerror = function()
+                    {
+                        video.onerror = function()
+                        {
+                            video.onerror = function() { this.remove() }
 
-                if (!isGifv)
+                            this.src = this.src.replace(/_\d+\./, "_240.")
+                        }
+
+                        this.src = this.src.replace(/_\d+\./, "_360.")
+                    }
+
+                    this.src = this.src.replace(/_\d+\./, "_480.")
+                }
+
+                if (isVideo)
                 {
                     video.onplay = ()=> { audio.play(); audio.currentTime = video.currentTime }
                     video.onpause = ()=> audio.pause()
@@ -144,26 +181,29 @@ async function main()
 
                 container.appendChild(video)
             }
-            else
-            {
-                const iframe = document.createElement("iframe")
-                iframe.src = post.media.content
-                iframe.style = style
-                iframe.style.height = post.media.height+4 +"px"
-                iframe.width = post.media.width
-                container.appendChild(iframe)
-            }
         }
     }
+}
 
-    function checkAndResize(element, isVideo)
+function checkAndResize(element, isVideo)
+{
+    if (screen.width + screen.height > 1400)
     {
-        if (screen.width + screen.height > 1400)
-        {
-            if ((isVideo ? element.videoWidth + element.videoHeight : element.naturalWidth + element.naturalHeight) < 1090)
-                element.style.height = "65vh"
-        }
-        else if (screen.width < screen.height)
-            element.style.width = "98%"
+        if ((isVideo ? element.videoWidth + element.videoHeight : element.naturalWidth + element.naturalHeight) < 1090)
+            element.style.height = "65vh"
     }
+    else if (screen.width < screen.height)
+        element.style.width = "98%"
+}
+
+async function loadNextPage()
+{
+    for (let i=0; i < subs.length; i++)
+        await fetchSubredditPosts(subs[i], responsesPerSub[i].token)
+
+    responsesPerSub.splice(0, subs.length)
+
+    processPosts()
+
+    loading = false
 }
