@@ -41,6 +41,18 @@ container.onscroll = async function()
 document.body.appendChild(container)
 
 
+const onViewObserver = new IntersectionObserver((entries) =>            // when the user actually sees them on the screen, instead of when they are loaded.
+{
+    entries.forEach(entry =>
+    {
+        if (entry.isIntersecting)
+            entry.target.play()
+        else
+            entry.target.pause()
+    })
+
+}, {threshold: 0.9})
+
 
 loadPosts()
 
@@ -49,7 +61,7 @@ loadPosts()
 async function loadPosts()
 {
     for (let i=0; i < subs.length; i++)
-        await fetchSubredditPosts(subs[i])
+        responsesPerSub.push(await fetchSubredditPosts(subs[i]))
 
     processPosts()
 }
@@ -59,16 +71,14 @@ function fetchSubredditPosts(subName, after)
     return new Promise(resolve =>
     {
         const xhr = new XMLHttpRequest()
-        xhr.open("GET", "https://gateway.reddit.com/desktopapi/v1/subreddits/"+subName+"?limit=5&sort=top&t="+timeWindow+"&after="+after)
+        xhr.open("GET", "https://gateway.reddit.com/desktopapi/v1/subreddits/"+subName+"?limit=3&sort=top&t="+timeWindow+"&after="+after)
         xhr.onload = function()
         {
             const response = JSON.parse(xhr.responseText)
 
             response.postIds = response.postIds.filter((a)=> !a.includes("="))
 
-            responsesPerSub.push(response)
-
-            resolve()
+            resolve(response)
         }
         xhr.send()
     })
@@ -78,7 +88,7 @@ function processPosts()
 {
     const style = "max-width: calc(100% - 6px); max-height: min(100vh,720px); object-fit: contain; inset: 0; margin: 15px auto; border: 3px lightgray solid; border-radius: 25px; display: block;"
 
-    for (let i=0; i < 5; i++)
+    for (let i=0; i < 3; i++)
     {
         for (let j=0; j < responsesPerSub.length; j++)
         {
@@ -171,16 +181,24 @@ function processPosts()
 
                 if (isVideo)
                 {
-                    video.onplay = ()=> { audio.play(); audio.currentTime = video.currentTime }
-                    video.onpause = ()=> audio.pause()
-
                     const audio = document.createElement("audio")
                     audio.src = post.media.scrubberThumbSource.replace("_96.", "_audio.")
                     container.appendChild(audio)
+
+                    video.onplay = ()=> { audio.play(); audio.currentTime = video.currentTime }
+                    video.onpause = ()=> audio.pause()
                 }
 
                 container.appendChild(video)
+
+                onViewObserver.observe(video)
             }
+
+            const commentCount = document.createElement("a")
+            commentCount.style = "margin: auto; margin-top: -10px; display: table;"
+            commentCount.innerText = post.numComments +" comments"
+            commentCount.href = post.permalink
+            container.appendChild(commentCount)
         }
     }
 }
@@ -190,7 +208,12 @@ function checkAndResize(element, isVideo)
     if (screen.width + screen.height > 1400)
     {
         if ((isVideo ? element.videoWidth + element.videoHeight : element.naturalWidth + element.naturalHeight) < 1090)
-            element.style.height = "65vh"
+        {
+            if ((isVideo ? element.videoHeight / element.videoWidth : element.naturalHeight / element.naturalWidth) > 0.6)
+                element.style.height = "65vh"
+            else
+                element.style.width = "98%"
+        }
     }
     else if (screen.width < screen.height)
         element.style.width = "98%"
@@ -199,9 +222,17 @@ function checkAndResize(element, isVideo)
 async function loadNextPage()
 {
     for (let i=0; i < subs.length; i++)
-        await fetchSubredditPosts(subs[i], responsesPerSub[i].token)
+    {
+        if (!responsesPerSub[i].token)
+        {
+            responsesPerSub.splice(i, 1)
+            subs.splice(i, 1)
+            i--
+            continue
+        }
 
-    responsesPerSub.splice(0, subs.length)
+        responsesPerSub[i] = await fetchSubredditPosts(subs[i], responsesPerSub[i].token)
+    }
 
     processPosts()
 
