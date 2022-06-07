@@ -18,8 +18,12 @@ const subs = ["memes", "gifs", "aww"]       // The list of subreddits to gather 
 
 const timeWindow = "day"                    // The time window of the top posts. Accepted values are "hour", "day", "week", "month", "year" and "alltime".
 
-const maxQuality = 720                      // Reddit provides multiple resolutions for the same video or image. The script will load the videos and images
-                                            // in a quality as close as possible to the one you specified. Accepted qualities are 240, 360, 480, 720 and 1080.
+const maxVideoQuality = 720                 // Reddit provides multiple resolutions for the same video. The script will load the videos in
+                                            // the quality you specified (if available). Accepted qualities are 240, 360, 480, 720 and 1080.
+
+const maxImageHeight = 1000                 // Reddit provides multiple resolutions for the same image. You can specify
+                                            // any size and the script will load the image in the closest size available.
+
 //********************************
 
 
@@ -31,7 +35,7 @@ const container = document.createElement("div")
 container.style = "position: fixed; z-index: 999; inset: 0px; margin: auto; height: 100vh; width: min(900px,100vw); overflow-y: scroll; background: white;"
 container.onscroll = async function()
 {
-    if (!loading && this.scrollTop > this.scrollTopMax - window.innerHeight * 3)
+    if (!loading && this.scrollTop > this.scrollHeight - window.innerHeight * 4)
     {
         loading = true
 
@@ -103,11 +107,11 @@ function processPosts()
             {
                 let mediaUrl = post.media.content
 
-                if (post.media.height > maxQuality)
+                if (post.media.height > maxImageHeight)
                 {
                     for (let k=0; k < post.media.resolutions.length; k++)
                     {
-                        if (post.media.resolutions[k].height > maxQuality)
+                        if (post.media.resolutions[k].height > maxImageHeight)
                         {
                             mediaUrl = post.media.resolutions[k].url
                             break
@@ -155,7 +159,7 @@ function processPosts()
                 if (!videoRoot)
                     videoUrl = post.media.content
                 else
-                    videoUrl = videoRoot.scrubberThumbSource.replace("_96.", (videoRoot.height > maxQuality ? "_"+ maxQuality +"." : "_"+videoRoot.height+"."))
+                    videoUrl = videoRoot.scrubberThumbSource.replace("_96.", (videoRoot.height > maxVideoQuality ? "_"+ maxVideoQuality +"." : "_"+videoRoot.height+"."))
 
                 const video = document.createElement("video")
                 video.src = videoUrl
