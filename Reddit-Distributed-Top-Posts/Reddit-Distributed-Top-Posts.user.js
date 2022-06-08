@@ -86,10 +86,10 @@ function fetchSubredditPosts(subName, after)
 
             resolve(response)
         }
-      
+
         if (includeNSFW)
             xhr.setRequestHeader("Authorization", "Bearer 1903401864856-P9yvSsF0a5pj4FFY1Zt80JyPWCL-fQ")
-      
+
         xhr.send()
     })
 }
@@ -106,57 +106,39 @@ function processPosts()
 
             const post = response.posts[response.postIds[i]]
 
-            if (!post || !post.media || post.media.type == "text")
+            if (!post || post.media && post.media.type == "text")
                 continue
 
-            if (post.media.type == "image")
+            if (!post.media)
             {
-                let mediaUrl = post.media.content
+                const imageExtensions = ["jpg", "png", "gif"]
+                const videoExtensions = ["gifv", "mp4"]
 
-                if (post.media.height > maxImageHeight)
+                const sourceUrlSplit = post.source.url.split(".")
+                const sourceExtension = sourceUrlSplit[sourceUrlSplit.length-1]
+
+                if (imageExtensions.includes(sourceExtension))
                 {
-                    for (let k=0; k < post.media.resolutions.length; k++)
-                    {
-                        if (post.media.resolutions[k].height > maxImageHeight)
-                        {
-                            mediaUrl = post.media.resolutions[k].url
-                            break
-                        }
-                    }
-                }
-
-                const img = document.createElement("img")
-                img.src = mediaUrl
-                img.style = style
-                img.onload = function() { checkAndResize(this) }
-                container.appendChild(img)
-            }
-            else if (post.media.type == "gallery")
-            {
-                Object.getOwnPropertyNames(post.media.mediaMetadata).forEach((p)=>
-                {
-                    let mediaUrl = post.media.mediaMetadata[p].s.u
-
-                    if (post.media.mediaMetadata[p].s.y > maxQuality)
-                    {
-                        for (let k=0; k < post.media.mediaMetadata[p].p.length; k++)
-                        {
-                            if (post.media.mediaMetadata[p].p[k].y > maxQuality)
-                            {
-                                mediaUrl = post.media.mediaMetadata[p].p[k].u
-                                break
-                            }
-                        }
-                    }
-
                     const img = document.createElement("img")
-                    img.src = mediaUrl
+                    img.src = post.source.url
                     img.style = style
                     img.onload = function() { checkAndResize(this) }
                     container.appendChild(img)
-                })
+                }
+                else if (videoExtensions.includes(sourceExtension))
+                {
+                    const video = document.createElement("video")
+                    video.src = post.source.url.replace("gifv", "mp4")
+                    video.style = style
+                    video.controls = true
+                    video.onloadeddata = function() { checkAndResize(this, true) }
+                    container.appendChild(video)
+
+                    onViewObserver.observe(video)
+                }
+                else continue
             }
-            else if (post.media.type.includes("video") || post.media.type == "embed")
+            else if (post.media.type.includes("video") || post.media.type == "embed" || post.media.type == "image" && post.media.videoPreview)
             {
                 const isVideo = post.media.type == "video"
                 const videoRoot = isVideo ? post.media : post.media.videoPreview
@@ -203,6 +185,54 @@ function processPosts()
 
                 onViewObserver.observe(video)
             }
+            else if (post.media.type == "image")
+            {
+                let mediaUrl = post.media.content
+
+                if (post.media.height > maxImageHeight)
+                {
+                    for (let k=0; k < post.media.resolutions.length; k++)
+                    {
+                        if (post.media.resolutions[k].height > maxImageHeight)
+                        {
+                            mediaUrl = post.media.resolutions[k].url
+                            break
+                        }
+                    }
+                }
+
+                const img = document.createElement("img")
+                img.src = mediaUrl
+                img.style = style
+                img.onload = function() { checkAndResize(this) }
+                container.appendChild(img)
+            }
+            else if (post.media.type == "gallery")
+            {
+                Object.getOwnPropertyNames(post.media.mediaMetadata).forEach((p)=>
+                {
+                    let mediaUrl = post.media.mediaMetadata[p].s.u
+
+                    if (post.media.mediaMetadata[p].s.y > maxQuality)
+                    {
+                        for (let k=0; k < post.media.mediaMetadata[p].p.length; k++)
+                        {
+                            if (post.media.mediaMetadata[p].p[k].y > maxQuality)
+                            {
+                                mediaUrl = post.media.mediaMetadata[p].p[k].u
+                                break
+                            }
+                        }
+                    }
+
+                    const img = document.createElement("img")
+                    img.src = mediaUrl
+                    img.style = style
+                    img.onload = function() { checkAndResize(this) }
+                    container.appendChild(img)
+                })
+            }
+
 
             const commentCount = document.createElement("a")
             commentCount.style = "margin: auto; margin-top: -10px; display: table;"
