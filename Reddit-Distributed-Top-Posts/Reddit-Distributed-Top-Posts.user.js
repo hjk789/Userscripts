@@ -34,7 +34,7 @@ const responsesPerSub = []
 let loading = false
 
 const container = document.createElement("div")
-container.style = "position: fixed; z-index: 999; inset: 0px; margin: auto; height: 100vh; width: min(900px,100vw); overflow-y: scroll; background: white;"
+container.style = "position: fixed; z-index: 999; inset: 0px; margin: auto; height: 100vh; width: min(900px,100vw); overflow-y: scroll; background: white; text-align: center;"
 container.onscroll = async function()
 {
     if (!loading && this.scrollTop > this.scrollHeight - window.innerHeight * 4)
@@ -67,36 +67,39 @@ loadPosts()
 async function loadPosts()
 {
     for (let i=0; i < subs.length; i++)
-        responsesPerSub.push(await fetchSubredditPosts(subs[i]))
+        responsesPerSub.push(await fetchSubredditPostsPromise(subs[i]))
 
     processPosts()
 }
 
-function fetchSubredditPosts(subName, after)
+function fetchSubredditPostsPromise(subName, after)
 {
-    return new Promise(resolve =>
+    return new Promise(resolve => fetchSubredditPosts(subName, after, resolve))
+}
+
+function fetchSubredditPosts(subName, after, resolve)
+{
+    const xhr = new XMLHttpRequest()
+    xhr.open("GET", "https://gateway.reddit.com/desktopapi/v1/subreddits/"+subName+"?limit=3&sort=top&t="+timeWindow+"&after="+after)
+    xhr.onload = function()
     {
-        const xhr = new XMLHttpRequest()
-        xhr.open("GET", "https://gateway.reddit.com/desktopapi/v1/subreddits/"+subName+"?limit=3&sort=top&t="+timeWindow+"&after="+after)
-        xhr.onload = function()
-        {
-            const response = JSON.parse(xhr.responseText)
+        const response = JSON.parse(xhr.responseText)
 
-            response.postIds = response.postIds.filter((a)=> !a.includes("="))
+        response.postIds = response.postIds.filter((a)=> !a.includes("="))
 
-            resolve(response)
-        }
+        resolve(response)
+    }
+    xhr.onerror = ()=> setTimeout(()=> fetchSubredditPosts(subName, after, resolve), 5000)
 
-        if (includeNSFW)
-            xhr.setRequestHeader("Authorization", "Bearer 1903401864856-P9yvSsF0a5pj4FFY1Zt80JyPWCL-fQ")
+    if (includeNSFW)
+        xhr.setRequestHeader("Authorization", "Bearer 1903401864856-P9yvSsF0a5pj4FFY1Zt80JyPWCL-fQ")
 
-        xhr.send()
-    })
+    xhr.send()
 }
 
 function processPosts()
 {
-    const style = "max-width: calc(100% - 6px); max-height: min(100vh,720px); object-fit: contain; inset: 0; margin: 15px auto; border: 3px lightgray solid; border-radius: 25px; display: block;"
+    const style = "max-width: calc(100% - 6px); max-height: min(92vh,720px); object-fit: contain; inset: 0; margin: 15px auto; border: 3px lightgray solid; border-radius: 25px; display: block;"
 
     for (let i=0; i < 3; i++)
     {
@@ -106,7 +109,7 @@ function processPosts()
 
             const post = response.posts[response.postIds[i]]
 
-            if (!post || post.media && post.media.type == "text")
+            if (!post || post.media && post.media.type == "text" || !post.media && !post.source)
                 continue
 
             if (!post.media)
@@ -116,6 +119,8 @@ function processPosts()
 
                 const sourceUrlSplit = post.source.url.split(".")
                 const sourceExtension = sourceUrlSplit[sourceUrlSplit.length-1]
+
+                post.source.url = post.source.url.replace("https://imgur", "https://i.imgur")
 
                 if (imageExtensions.includes(sourceExtension))
                 {
@@ -213,11 +218,11 @@ function processPosts()
                 {
                     let mediaUrl = post.media.mediaMetadata[p].s.u
 
-                    if (post.media.mediaMetadata[p].s.y > maxQuality)
+                    if (post.media.mediaMetadata[p].s.y > maxImageHeight)
                     {
                         for (let k=0; k < post.media.mediaMetadata[p].p.length; k++)
                         {
-                            if (post.media.mediaMetadata[p].p[k].y > maxQuality)
+                            if (post.media.mediaMetadata[p].p[k].y > maxImageHeight)
                             {
                                 mediaUrl = post.media.mediaMetadata[p].p[k].u
                                 break
@@ -234,8 +239,14 @@ function processPosts()
             }
 
 
+            const username = document.createElement("a")
+            username.style = "margin-top: -10px; margin-right: 50px; display: ruby-text;"
+            username.innerText = "u/"+post.author
+            username.href = username.innerText
+            container.appendChild(username)
+
             const commentCount = document.createElement("a")
-            commentCount.style = "margin: auto; margin-top: -10px; display: table;"
+            commentCount.style = "margin-top: -10px; display: ruby-text;"
             commentCount.innerText = post.numComments +" comments"
             commentCount.href = post.permalink
             container.appendChild(commentCount)
@@ -271,7 +282,7 @@ async function loadNextPage()
             continue
         }
 
-        responsesPerSub[i] = await fetchSubredditPosts(subs[i], responsesPerSub[i].token)
+        responsesPerSub[i] = await fetchSubredditPostsPromise(subs[i], responsesPerSub[i].token)
     }
 
     processPosts()
