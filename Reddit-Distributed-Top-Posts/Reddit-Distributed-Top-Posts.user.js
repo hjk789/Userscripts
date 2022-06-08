@@ -24,6 +24,8 @@ const maxVideoQuality = 720                 // Reddit provides multiple resoluti
 const maxImageHeight = 1000                 // Reddit provides multiple resolutions for the same image. You can specify
                                             // any size and the script will load the image in the closest size available.
 
+const includeNSFW = false                   // When false, posts set as NSFW are filtered from the list and won't be included. Set to true to disable the filtering.
+
 //********************************
 
 
@@ -84,6 +86,10 @@ function fetchSubredditPosts(subName, after)
 
             resolve(response)
         }
+      
+        if (includeNSFW)
+            xhr.setRequestHeader("Authorization", "Bearer 1903401864856-P9yvSsF0a5pj4FFY1Zt80JyPWCL-fQ")
+      
         xhr.send()
     })
 }
