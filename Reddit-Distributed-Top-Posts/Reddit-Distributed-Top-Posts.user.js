@@ -236,6 +236,12 @@ function processPosts()
             }
 
 
+            const subname = document.createElement("a")
+            subname.style = "margin-top: -10px; margin-right: 50px; display: ruby-text;"
+            subname.innerText = "r/"+post.permalink.split("/r/")[1].split("/")[0]
+            subname.href = "/./"+subname.innerText
+            container.appendChild(subname)  
+          
             const username = document.createElement("a")
             username.style = "margin-top: -10px; margin-right: 50px; display: ruby-text;"
             username.innerText = "u/"+post.author
