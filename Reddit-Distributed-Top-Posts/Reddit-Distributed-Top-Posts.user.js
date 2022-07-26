@@ -80,7 +80,7 @@ function fetchSubredditPostsPromise(subName, after)
 function fetchSubredditPosts(subName, after, resolve)
 {
     const xhr = new XMLHttpRequest()
-    xhr.open("GET", "https://gateway.reddit.com/desktopapi/v1/subreddits/"+subName+"?limit=3&sort=top&t="+timeWindow+"&after="+after)
+    xhr.open("GET", "https://gateway.reddit.com/desktopapi/v1/subreddits/"+subName+"?limit=3&sort=top&t="+timeWindow+"&allow_over18="+(+includeNSFW)+"&after="+after)
     xhr.onload = function()
     {
         const response = JSON.parse(xhr.responseText)
@@ -90,9 +90,6 @@ function fetchSubredditPosts(subName, after, resolve)
         resolve(response)
     }
     xhr.onerror = ()=> setTimeout(()=> fetchSubredditPosts(subName, after, resolve), 5000)
-
-    if (includeNSFW)
-        xhr.setRequestHeader("Authorization", "Bearer 1903401864856-P9yvSsF0a5pj4FFY1Zt80JyPWCL-fQ")
 
     xhr.send()
 }
