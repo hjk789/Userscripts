@@ -1,0 +1,50 @@
+﻿<html style="user-select: none; width: 410px; font-family: Segoe UI;">
+    <style>
+        span { font-size: 15px; }
+
+        body > div { padding: 5px 5px; }
+
+        #open-website div div:hover {
+            background: #ec2121;
+            color: white !important;
+        }
+
+        #open-website div div {
+            border: 2px solid #ec2121;
+            border-radius: 10px;
+            padding: 5px 20px;
+            font-size: 15px;
+            width: 150px;
+            color: #e00000;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 1px;
+        }
+
+        a {
+            text-decoration: none;
+            color: inherit;
+        }
+    </style>
+    <body>
+
+        <div id="open-website" class="collapsable" style="padding-top: 10px;">
+            <span style="font-weight: 600; cursor: pointer;">Open YouTube ▶</span>
+            <div style="display: none; padding: 5px;">
+                <a href="https://youtube.com/" target="_blank"><div>Homepage</div></a>
+                <a href="https://youtube.com/feed/subscriptions" target="_blank"><div>Subscriptions</div></a>
+            </div>
+        </div>
+        <div>
+            <span style="font-weight: 600;">Options</span>
+            <iframe src="options-page.html" style="height: 150px; width: 370px; padding-left: 15px; margin-top: 10px; border: 2px solid #f2f2f2; border-left: 2px solid #f8f8f8; border-right: 2px solid #f8f8f8; border-radius: 20px;"></iframe>
+        </div>
+        <div class="collapsable" style="padding-top: 10px;">
+            <span style="font-weight: 500; cursor: pointer;">❤️ Donate</span>
+            <iframe src="donation.html" style="display: none; width: 395px; height: 785px; border: 0px; margin-top: 10px;"></iframe>
+        </div>
+
+        <script src="popup.js"></script>
+
+    </body>
+</html>

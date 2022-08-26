@@ -1,0 +1,37 @@
+<html>
+    <head>
+        <title>YouTube Clickbait-Buster Options</title>
+        <style>
+            body { overflow: hidden; }
+            table { border-collapse: collapse; }
+            tr {
+                border-bottom: 1px solid lightgray;
+                line-height: 30px;
+                font-family: Segoe UI;
+            }
+        </style>
+    </head>
+    <body>
+        <table>
+            <tr title="The ''Peek video content'' feature uses the video's storyboard provided by YouTube. This storyboard is divided in chunks of frames. Set this to the number of chunks per row you would like. Note that the size and the number of chunks per row is limited by your device's screen dimensions.">
+                <td style="padding-right: 20px;">Number of storyboard chunks per row</td>
+                <td><input id="numberChunkColumns" type="number" min="1" max="9" style="width: 35px;"></td>
+            </tr>
+            <tr title="The two letters language-country code of the language you want the transcriptions to always be in. Examples: for US English, en-US, for Spain's Spanish, es-ES, and so on. If there's no subtitles in the specified language, another language (if any) will be selected and then translated to the specified language. If left blank, the language most likely to be the original is selected.">
+                <td>Preferred transcript language</td>
+                <td><input id="preferredTranscriptLanguage" maxlength="5" size="3"></td>
+            </tr>
+            <tr title='Whether the comments popup should be sorted by "Top comments" by default. If disabled, it will be sorted by "Newest first".'>
+                <td>Sort by top comments by default</td>
+                <td><input id="sortByTopComments" type="checkbox"></td>
+            </tr>
+            <tr style="border-bottom: 0;" title="Whether the videos' title should be forced to be displayed in full, without any trimmings. In case you are using any other userscript or extension that changes YouTube's layout, disable this if you see anything wrong in the layout, such as titles overlapping.">
+                <td>Display full titles</td>
+                <td><input id="fullTitles" type="checkbox"></td>
+            </tr>
+        </table>
+
+        <script src="utils.js"></script>
+        <script src="options-page.js"></script>
+    </body>
+</html>
