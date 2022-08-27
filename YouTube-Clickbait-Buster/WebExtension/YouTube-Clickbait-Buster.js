@@ -512,7 +512,7 @@ function addMenuItems()
 {
     const waitForMenu = setInterval(function()
     {
-        const menu = isMobile ? document.getElementById("menu") : document.querySelector("#details #menu yt-icon, .details #menu yt-icon, #title-wrapper #menu yt-icon, ytd-playlist-video-renderer #menu yt-icon")
+        const menu = isMobile ? document.getElementById("menu") : document.querySelector("#details #menu yt-icon, .details #menu yt-icon, #title-wrapper #menu .ytd-menu-renderer > #button yt-icon, ytd-playlist-video-renderer #menu yt-icon")
 
         if (!menu)
             return
