@@ -1,0 +1,28 @@
+{
+  "manifest_version": 2,
+  "name": "YouTube Clickbait-Buster",
+  "version": "2.0.2",
+  "description": "Check whether it's worth watching a video before watching. Peek content, description, comments, full-size thumbnail and full titles.",
+
+  "icons": { "128": "icon.png" },
+
+  "permissions": ["storage"],
+
+  "content_scripts":
+  [{
+      "matches": ["https://www.youtube.com/*", "https://m.youtube.com/*"],
+      "js": ["utils.js", "YouTube-Clickbait-Buster.js"],
+      "all_frames": true
+  }],
+
+  "web_accessible_resources": [ "/donation.html" ],  
+  
+  "options_ui": { "page": "options-page.html" },
+
+  "browser_action":
+  {
+    "default_title": "YouTube Clickbait-Buster",
+    "default_icon": "icon.png",
+    "default_popup": "popup.html"
+  }
+}
