@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name            YouTube Clickbait-Buster
-// @version         1.10.2
+// @version         1.10.3
 // @description     Check whether it's worth watching a video before actually clicking on it by peeking it's visual or verbal content, description, comments, viewing the thumbnail in full-size and displaying the full title. Works on both YouTube's desktop and mobile layouts, and is also compatible with dark theme.
 // @author          BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
 // @copyright       2022+, BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
@@ -492,7 +492,7 @@ function addMenuItems()
 {
     const waitForMenu = setInterval(function()
     {
-        const menu = isMobile ? document.getElementById("menu") : document.querySelector("#details #menu yt-icon, .details #menu yt-icon, #title-wrapper #menu yt-icon, ytd-playlist-video-renderer #menu yt-icon")
+        const menu = isMobile ? document.getElementById("menu") : document.querySelector("#details #menu yt-icon, .details #menu yt-icon, #title-wrapper #menu .ytd-menu-renderer > #button yt-icon, ytd-playlist-video-renderer #menu yt-icon")
 
         if (!menu)
             return
