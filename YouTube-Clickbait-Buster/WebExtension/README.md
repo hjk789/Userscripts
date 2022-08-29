@@ -2,8 +2,9 @@
 <h1 align="center">YouTube Clickbait-Buster</h1>
 <p align="center">Check whether it's worth watching a video before actually clicking on it, by peeking it's visual or verbal content, description, comments, viewing the thumbnail in full-size and displaying the full title. Works on both YouTube's desktop and mobile layouts, and is compatible with dark theme. </p>
 <p align="center">
-    <span align="center"><a href="https://addons.mozilla.org/firefox/addon/youtube-clickbait-buster/?utm_source=github"><img src="https://i.imgur.com/K0ExDd5.png"></a></span><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span align="center"><a href="https://greasyfork.org/scripts/439305-youtube-clickbait-buster" align="center"><img src="https://i.imgur.com/ovI0w6c.png"></a></span><br><br><span align="center"><a href="https://github.com/hjk789/NXEnhanced/wiki/Donation-methods" align="center"><img src="https://i.imgur.com/RUqBPXG.png"></a></span>    
+    <span align="center"><a href="https://addons.mozilla.org/addon/youtube-clickbait-buster/?utm_source=github"><img src="https://i.imgur.com/K0ExDd5.png"></a></span><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span align="center"><a href="https://chrome.google.com/webstore/detail/youtube-clickbait-buster/iajoojjhhcjojdealgfdeehagopjaogm"><img src="https://i.imgur.com/t2z2r5G.png"></a></span><span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><span align="center"><a href="https://greasyfork.org/scripts/408934-nx-enhanced" align="center"><img src="https://i.imgur.com/ovI0w6c.png"></a></span><br><br><span align="center"><a href="https://github.com/hjk789/NXEnhanced/wiki/Donation-methods" align="center"><img src="https://i.imgur.com/RUqBPXG.png"></a></span>    
 </p>
+
 
 
 
