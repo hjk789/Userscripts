@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name            YouTube Clickbait-Buster
-// @version         1.10.3
+// @version         1.10.4
 // @description     Check whether it's worth watching a video before actually clicking on it by peeking it's visual or verbal content, description, comments, viewing the thumbnail in full-size and displaying the full title. Works on both YouTube's desktop and mobile layouts, and is also compatible with dark theme.
 // @author          BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
 // @copyright       2022+, BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
@@ -158,7 +158,7 @@ extendFunctions()
                 const transcriptContainer = document.createElement("div")
                 transcriptContainer.id = "transcriptContainer"
                 transcriptContainer.style = "position: fixed; z-index: 9999; background-color: " + backgroundColor + "; color: var(--paper-listbox-color); font-size: 15px;" +
-                                            "width: max-content; max-width: 94vw; overflow: scroll; top: 0; left: 0; right: 0; margin: auto; padding: 10px;"
+                                            "width: max-content; max-width: 92vw; overflow: auto scroll; top: 0; left: 0; right: 0; margin: auto; padding: 10px;"
                 transcriptContainer.style.maxHeight = isMobile ? "90vh" : "98vh"
                 transcriptContainer.onclick = function() { event.stopPropagation() }
 
@@ -236,10 +236,12 @@ extendFunctions()
                 if (!transcriptTranslationDropdown.value)
                     transcriptTranslationDropdown.value = preferredTranscriptLanguage.split("-")[0]
 
+                if (transcriptLanguageDropdown.value.startsWith(transcriptTranslationDropdown.value))
+                    transcriptTranslationDropdown.value = ""
 
                 const transcriptTextContainer = document.createElement("div")
                 transcriptTextContainer.id = "transcriptTextContainer"
-                transcriptTextContainer.style = "min-width: max-content; max-width: 94vw; border-top: 1px solid lightgray;"
+                transcriptTextContainer.style = "min-width: max-content; max-width: 92vw; border-top: 1px solid lightgray;"
                 transcriptContainer.appendChild(transcriptTextContainer)
 
                 if (isMobile)
@@ -256,7 +258,7 @@ extendFunctions()
                 document.body.appendChild(transcriptContainer)
 
 
-                loadTranscript(transcriptObj.captionTracks[transcriptLanguageDropdown.selectedIndex].baseUrl + "&tlang=" + transcriptTranslationDropdown.value)
+                loadTranscript(transcriptObj.captionTracks[transcriptLanguageDropdown.selectedIndex].baseUrl + "&tlang=" + (transcriptLanguageDropdown.value.startsWith(transcriptTranslationDropdown.value) ? "" : transcriptTranslationDropdown.value))
             }
             xhr.send()
 
@@ -307,7 +309,7 @@ extendFunctions()
 
                 const commentsContainer = document.createElement("div")
                 commentsContainer.id = "commentsContainer"
-                commentsContainer.style = "position: fixed; top: 0; left: 0; right: 0; z-index: 9999; margin: auto; width: 700px; max-width: 94vw; overflow-y: scroll; padding: 10px;"+
+                commentsContainer.style = "position: fixed; top: 0; left: 0; right: 0; z-index: 9999; margin: auto; width: 700px; max-width: 92vw; overflow-y: scroll; padding: 10px;"+
                                           "border: 1px solid lightgray; background-color: "+ backgroundColor +"; color: var(--paper-listbox-color); font-size: 15px; visibility: hidden;"
                 commentsContainer.style.maxHeight = isMobile ? "92vh" : "97vh"
                 commentsContainer.onclick = function() { event.stopPropagation() }
@@ -501,8 +503,14 @@ function addMenuItems()
 
         if (document.getElementById("viewStoryboardButton") || document.getElementById("viewThumbnailButton"))                      // Only add the menu items if they aren't present already.
         {
-            const menu = document.getElementById("viewStoryboardButton").parentElement.parentElement                                                                            // YouTube resets the menu size everytime it's opened,
-            menu.style = "max-height: max-content !important; max-width: max-content !important; height: max-content !important; width: max-content !important;"                // so the script needs to force max size right after.
+            const isYRRHInstalled = document.getElementById("hideChannelButton")
+            let widthPx = "230px"
+
+            if (isYRRHInstalled)
+                widthPx = "260px"
+
+            const menu = document.getElementById("viewStoryboardButton").parentElement.parentElement                                                                                                  // YouTube resets the menu size everytime it's opened,
+            menu.style = "max-height: max-content !important; max-width: max(100%, "+widthPx+") !important; height: max-content !important; width: max(100%, "+widthPx+") !important;"                // so the script needs to force max size right after.
 
             const bottomValue = menu.firstElementChild.getBoundingClientRect().bottom
             const menuContainer = menu.parentElement.parentElement.style
@@ -795,7 +803,18 @@ function loadCommentsOrReplies(container, pageName, apiKey, token, isReplies = f
     xhrComments.open('POST', "https://www.youtube.com/youtubei/v1/"+ pageName +"?prettyPrint=false&key="+ apiKey)
     xhrComments.onload = function()
     {
-        const responseObj = JSON.parse(xhrComments.responseText)
+        let response = xhrComments.responseText
+
+        if (isReplies)
+        {
+            const userNameArrays = [...xhrComments.responseText.matchAll(/{"authorText":{"simpleText":"(.+?)"/g)]                       // Get the username of all the replies authors.
+            const userNames = [...new Set(userNameArrays.map(u => u[1]))]                                                               // Get the matched usernames and remove duplicates.
+
+            for (let i=0; i < userNames.length; i++)
+                response = response.replaceAll("@"+userNames[i], "<span style='color: #999;'>@"+userNames[i]+"</span>")                 // Highlight all mentions to the listed usernames, to make it easier to find the reply message beginning.
+        }
+
+        const responseObj = JSON.parse(response)
         let comments = responseObj.onResponseReceivedEndpoints[isReplies ? 0 : 1]
 
         if (!comments)
@@ -804,7 +823,12 @@ function loadCommentsOrReplies(container, pageName, apiKey, token, isReplies = f
         comments = comments[isReplies ? "appendContinuationItemsAction" : "reloadContinuationItemsCommand"].continuationItems
 
         if (!comments)
-            return alert("This video doesn't have any comments yet.")
+        {
+            if (!isReplies)
+                alert("This video doesn't have any comments yet.")
+
+            return
+        }
 
 
         if (!isReplies)
@@ -847,6 +871,24 @@ function loadCommentsOrReplies(container, pageName, apiKey, token, isReplies = f
             commentTextContainer.innerText = commentText
             commentTextContainer.style = isReplies ? "border-top: 1px solid lightgray; margin-top: 10px; padding-top: 10px; margin-left: 60px;"
                                                    : "border-bottom: 1px solid lightgray; margin-bottom: 10px; padding-bottom: 10px;"
+
+            if (comment.authorIsChannelOwner)                                   // Highlight the channel owner's comments.
+            {
+                const authorName = commentTextContainer.createElement("div",
+                {
+                    innerText: comment.authorText.simpleText,
+                    style: "background-color: gray; color: white; font-weight: 500; font-size: 13px; width: max-content; padding: 2px 6px; border-radius: 10px; margin-bottom: 5px;"
+                }, true)
+            }
+            else if (isReplies && xhrComments.responseText.includes("@"+comment.authorText.simpleText))                      // Display the reply author username when it's mentioned by someone
+            {                                                                                                                // else, to make it easier to identify who the reply is directed to.
+                const authorName = commentTextContainer.createElement("div",
+                {
+                    innerText: comment.authorText.simpleText,
+                    style: "font-weight: 500; font-size: 13px; margin-bottom: 5px;"
+                }, true)
+            }
+
             if (comment.replyCount)
             {
                 const replyToken = commentData.replies.commentRepliesRenderer.contents[0].continuationItemRenderer.continuationEndpoint.continuationCommand.token
@@ -854,7 +896,7 @@ function loadCommentsOrReplies(container, pageName, apiKey, token, isReplies = f
                 const showRepliesButton = commentTextContainer.createElment("span",
                 {
                     style: "display: block; margin-top: 10px; color: #065fd4; font-weight: 500; cursor: pointer; font-size: 14px;",
-                    innerText: "▾ Show replies",
+                    innerText: "▾ Show "+ (comment.replyCount > 1 ? "replies" : "reply"),
                     onclick: function()
                     {
                         if (this.innerText.includes("Show"))
@@ -865,7 +907,7 @@ function loadCommentsOrReplies(container, pageName, apiKey, token, isReplies = f
                         }
                         else
                         {
-                            this.innerText = "▾ Show replies"
+                            this.innerText = "▾ Show "+ (comment.replyCount > 1 ? "replies" : "reply")
 
                             repliesContainer.innerHTML = ""
                         }

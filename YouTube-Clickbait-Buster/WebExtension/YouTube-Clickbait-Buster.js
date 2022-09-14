@@ -521,8 +521,14 @@ function addMenuItems()
 
         if (document.getElementById("viewStoryboardButton") || document.getElementById("viewThumbnailButton"))                      // Only add the menu items if they aren't present already.
         {
-            const menu = document.getElementById("viewStoryboardButton").parentElement.parentElement                                                                            // YouTube resets the menu size everytime it's opened,
-            menu.style = "max-height: max-content !important; max-width: max-content !important; height: max-content !important; width: max-content !important;"                // so the script needs to force max size right after.
+            const isYRRHInstalled = document.getElementById("hideChannelButton")
+            let widthPx = "230px"
+
+            if (isYRRHInstalled)
+                widthPx = "260px"
+
+            const menu = document.getElementById("viewStoryboardButton").parentElement.parentElement                                                                                                  // YouTube resets the menu size everytime it's opened,
+            menu.style = "max-height: max-content !important; max-width: max(100%, "+widthPx+") !important; height: max-content !important; width: max(100%, "+widthPx+") !important;"                // so the script needs to force max size right after.
 
             const bottomValue = menu.firstElementChild.getBoundingClientRect().bottom
             const menuContainer = menu.parentElement.parentElement.style
