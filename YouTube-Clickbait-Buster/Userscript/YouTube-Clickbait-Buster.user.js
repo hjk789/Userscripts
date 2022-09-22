@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name            YouTube Clickbait-Buster
-// @version         1.10.4
+// @version         1.10.5
 // @description     Check whether it's worth watching a video before actually clicking on it by peeking it's visual or verbal content, description, comments, viewing the thumbnail in full-size and displaying the full title. Works on both YouTube's desktop and mobile layouts, and is also compatible with dark theme.
 // @author          BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
 // @copyright       2022+, BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
@@ -874,7 +874,7 @@ function loadCommentsOrReplies(container, pageName, apiKey, token, isReplies = f
 
             if (comment.authorIsChannelOwner)                                   // Highlight the channel owner's comments.
             {
-                const authorName = commentTextContainer.createElement("div",
+                const authorName = commentTextContainer.createElment("div",
                 {
                     innerText: comment.authorText.simpleText,
                     style: "background-color: gray; color: white; font-weight: 500; font-size: 13px; width: max-content; padding: 2px 6px; border-radius: 10px; margin-bottom: 5px;"
@@ -882,7 +882,7 @@ function loadCommentsOrReplies(container, pageName, apiKey, token, isReplies = f
             }
             else if (isReplies && xhrComments.responseText.includes("@"+comment.authorText.simpleText))                      // Display the reply author username when it's mentioned by someone
             {                                                                                                                // else, to make it easier to identify who the reply is directed to.
-                const authorName = commentTextContainer.createElement("div",
+                const authorName = commentTextContainer.createElment("div",
                 {
                     innerText: comment.authorText.simpleText,
                     style: "font-weight: 500; font-size: 13px; margin-bottom: 5px;"
