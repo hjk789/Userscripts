@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name            YouTube Repeated Recommendations Hider
 // @description     Hide any videos that are recommended more than twice. You can also hide by channel or by partial title. Works on both YouTube's desktop and mobile layouts.
-// @version         2.4.3
+// @version         2.4.6
 // @author          BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
 // @copyright       2020+, BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
 // @homepage        https://github.com/hjk789/Userscripts/tree/master/YouTube-Repeated-Recommendations-Hider
@@ -409,7 +409,7 @@ async function processRecommendation(node, reprocess = false, source = "")
 
     if (timeLabelEll)
         videoType = timeLabelEll.attributes[(isMobile ? "data" : "overlay") + "-style"].value               // Get the type of the video, which can be a normal video, a live stream or a premiere.
-    else if (node.querySelector(".badge-style-type-live-now"))                                      // In the homepage of the desktop layout, the live indicator is in a different element.
+    else if (node.querySelector(".badge-style-type-live-now, .badge-style-type-live-now-alternate"))                                      // In the homepage of the desktop layout, the live indicator is in a different element.
         videoType = "LIVE"
 
 
@@ -418,7 +418,7 @@ async function processRecommendation(node, reprocess = false, source = "")
 
     if (!isSubscriptionsPage)
     {
-        if (alwaysHideMixes && node.tagName == (isMobile ? "YTM-RADIO-RENDERER" : "YTD-COMPACT-RADIO-RENDERER")
+        if (alwaysHideMixes && (node.querySelector("a").href.includes("radio") || node.tagName == (isMobile ? "YTM-RADIO-RENDERER" : "YTD-COMPACT-RADIO-RENDERER") || node.querySelector("ytd-thumbnail-overlay-bottom-panel-renderer"))
             || alwaysHideOngoingLives && videoType == "LIVE"
             || alwaysHidePlaylists && node.tagName == "YT" + (isMobile ? "M" : "D") + "-COMPACT-PLAYLIST-RENDERER"
             || alwaysHideMovies && node.tagName == "YTD-COMPACT-MOVIE-RENDERER")
@@ -439,8 +439,8 @@ async function processRecommendation(node, reprocess = false, source = "")
         videoChannel = node.querySelector(".ytd-channel-name#text").textContent
 
     if (isMobile || isHomepage)
-        videoUrl = cleanVideoUrl(videoTitleEll.parentElement.href)                      // The mix playlists and the promoted videos include ID parameters, along with the video id,
-    else                                                                                // which changes everytime it's recommended. These IDs need to be ignored to filter it correctly.
+        videoUrl = cleanVideoUrl(videoTitleEll.parentElement.href || videoTitleEll.parentElement.parentElement.href)                      // The mix playlists and the promoted videos include ID parameters, along with the video id,
+    else                                                                                                                                  // which changes everytime it's recommended. These IDs need to be ignored to filter it correctly.
         videoUrl = cleanVideoUrl(node.querySelector(".details a, #details a").href)
 
 
