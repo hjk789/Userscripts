@@ -512,14 +512,14 @@ function addMenuItems()
 {
     const waitForMenu = setInterval(function()
     {
-        const menu = isMobile ? document.getElementById("menu") : document.querySelector("#details #menu yt-icon, .details #menu yt-icon, #title-wrapper #menu .ytd-menu-renderer > #button yt-icon, ytd-playlist-video-renderer #menu yt-icon")
+        const menu = isMobile ? document.getElementsByClassName("yt-spec-bottom-sheet-layout")[0] : document.querySelector("#details #menu yt-icon, .details #menu yt-icon, #title-wrapper #menu .ytd-menu-renderer > #button yt-icon, ytd-playlist-video-renderer #menu yt-icon")
 
         if (!menu)
             return
 
         clearInterval(waitForMenu)
 
-        if (document.getElementById("viewStoryboardButton") || document.getElementById("viewThumbnailButton"))                      // Only add the menu items if they aren't present already.
+        if (document.getElementById("viewStoryboardButton") || document.getElementById("viewThumbnailButton"))
         {
             const isYRRHInstalled = document.getElementById("hideChannelButton")
             let widthPx = "230px"
@@ -542,12 +542,12 @@ function addMenuItems()
 
         if (isMobile)
         {
-            menu.firstChild.appendChild(viewStoryboardButton)
-            menu.firstChild.appendChild(viewTranscriptButton)
-            menu.firstChild.appendChild(viewDescriptionButton)
-            menu.firstChild.appendChild(viewCommentsButton)
-            menu.firstChild.appendChild(viewChannelButton)
-            menu.firstChild.appendChild(viewThumbnailButton)
+            menu.lastChild.appendChild(viewStoryboardButton)
+            menu.lastChild.appendChild(viewTranscriptButton)
+            menu.lastChild.appendChild(viewDescriptionButton)
+            menu.lastChild.appendChild(viewCommentsButton)
+            menu.lastChild.appendChild(viewChannelButton)
+            menu.lastChild.appendChild(viewThumbnailButton)
         }
         else
         {
@@ -617,7 +617,7 @@ function processVideoItem(node)
 
     let videoUrl = videoTitleEll.href || videoTitleEll.parentElement.href || videoTitleEll.parentElement.parentElement.href
 
-    const videoMenuBtn = node.querySelector(isMobile ? "ytm-menu" : "ytd-menu-renderer")
+    const videoMenuBtn = node.querySelector(isMobile ? ".media-item-menu" : "ytd-menu-renderer")
 
     // Because the recommendation's side-menu is separated from the recommendations container, this listens to clicks on each three-dot
     // button and store in a variable in what recommendation it was clicked, to then be used to load the storyboards or thumbnail.
