@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name            YouTube Clickbait-Buster
-// @version         1.10.6
+// @version         1.10.7
 // @description     Check whether it's worth watching a video before actually clicking on it by peeking it's visual or verbal content, description, comments, viewing the thumbnail in full-size and displaying the full title. Works on both YouTube's desktop and mobile layouts, and is also compatible with dark theme.
 // @author          BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
 // @copyright       2022+, BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
@@ -868,7 +868,7 @@ function loadCommentsOrReplies(container, pageName, apiKey, token, isReplies = f
                 commentText += commentContents[j].text                              // are all in separated strings. This appends them all in one string.
 
             const commentTextContainer = document.createElement("div")
-            commentTextContainer.innerText = commentText
+            commentTextContainer.innerHTML = commentText
             commentTextContainer.style = isReplies ? "border-top: 1px solid lightgray; margin-top: 10px; padding-top: 10px; margin-left: 60px;"
                                                    : "border-bottom: 1px solid lightgray; margin-bottom: 10px; padding-bottom: 10px;"
 
