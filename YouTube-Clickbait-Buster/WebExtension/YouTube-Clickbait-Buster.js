@@ -1,4 +1,4 @@
-// Name            YouTube Clickbait-Buster
+﻿// Name            YouTube Clickbait-Buster
 // Description     Check whether it's worth watching a video before actually clicking on it, by peeking it's visual or verbal content, description, comments, viewing the thumbnail in full-size and displaying the full title.
 // Author          BLBC (github.com/hjk789, addons.mozilla.org/user/10772492)
 // Homepage        https://github.com/hjk789/Userscripts/tree/master/YouTube-Clickbait-Buster
@@ -542,12 +542,12 @@ function addMenuItems()
 
         if (isMobile)
         {
-            menu.lastChild.appendChild(viewStoryboardButton)
-            menu.lastChild.appendChild(viewTranscriptButton)
-            menu.lastChild.appendChild(viewDescriptionButton)
-            menu.lastChild.appendChild(viewCommentsButton)
-            menu.lastChild.appendChild(viewChannelButton)
-            menu.lastChild.appendChild(viewThumbnailButton)
+            menu.appendChild(viewStoryboardButton)
+            menu.appendChild(viewTranscriptButton)
+            menu.appendChild(viewDescriptionButton)
+            menu.appendChild(viewCommentsButton)
+            menu.appendChild(viewChannelButton)
+            menu.appendChild(viewThumbnailButton)
         }
         else
         {
