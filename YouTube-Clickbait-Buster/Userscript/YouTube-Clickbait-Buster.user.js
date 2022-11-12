@@ -1,6 +1,6 @@
-﻿// ==UserScript==
+// ==UserScript==
 // @name            YouTube Clickbait-Buster
-// @version         1.10.8
+// @version         1.10.9
 // @description     Check whether it's worth watching a video before actually clicking on it by peeking it's visual or verbal content, description, comments, viewing the thumbnail in full-size and displaying the full title. Works on both YouTube's desktop and mobile layouts, and is also compatible with dark theme.
 // @author          BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
 // @copyright       2022+, BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
@@ -485,7 +485,6 @@ function main()
             processVideoItem(videoItems[i])
     })
 
-
     window.onresize = function() { checkScreenSpaceAndAdaptStoryboard() }
     screen.orientation.onchange = function() { checkScreenSpaceAndAdaptStoryboard() }
 }
@@ -501,7 +500,14 @@ function addMenuItems()
 
         clearInterval(waitForMenu)
 
-        if (document.getElementById("viewStoryboardButton") || document.getElementById("viewThumbnailButton"))
+        menu.parentElement.previousSibling.addEventListener("click", function()
+        {
+            document.getElementById("viewStoryboardButton").parentElement.remove()
+        })
+
+        if (isMobile)
+            menu.style = "bottom: 204px; border-radius: 15px 15px 0px 0px;"
+        else if (document.getElementById("viewStoryboardButton") || document.getElementById("viewThumbnailButton"))
         {
             const isYRRHInstalled = document.getElementById("hideChannelButton")
             let widthPx = "230px"
@@ -524,12 +530,17 @@ function addMenuItems()
 
         if (isMobile)
         {
-            menu.appendChild(viewStoryboardButton)
-            menu.appendChild(viewTranscriptButton)
-            menu.appendChild(viewDescriptionButton)
-            menu.appendChild(viewCommentsButton)
-            menu.appendChild(viewChannelButton)
-            menu.appendChild(viewThumbnailButton)
+            const YCBmenu = document.createElement("div")
+            YCBmenu.style = "position: fixed; inset: auto 0 0 0; z-index: 9999; background: white; border-radius: 0px 0px 15px 15px; margin: 8px;"
+
+            YCBmenu.appendChild(viewStoryboardButton)
+            YCBmenu.appendChild(viewTranscriptButton)
+            YCBmenu.appendChild(viewDescriptionButton)
+            YCBmenu.appendChild(viewCommentsButton)
+            YCBmenu.appendChild(viewChannelButton)
+            YCBmenu.appendChild(viewThumbnailButton)
+
+            document.body.appendChild(YCBmenu)
         }
         else
         {
@@ -811,7 +822,7 @@ function loadCommentsOrReplies(container, pageName, apiKey, token, isReplies = f
             const userNames = [...new Set(userNameArrays.map(u => u[1]))]                                                               // Get the matched usernames and remove duplicates.
 
             for (let i=0; i < userNames.length; i++)
-                response = response.replaceAll("@"+userNames[i], "<span style='color: #999;'>@"+userNames[i]+"</span>")                 // Highlight all mentions to the listed usernames, to make it easier to find the reply message beginning.
+                response = response.replaceAll("@"+userNames[i], "<span style='color: #999; user-select: none;'>@"+userNames[i]+"</span>")                 // Highlight all mentions to the listed usernames, to make it easier to find the reply message beginning.
         }
 
         const responseObj = JSON.parse(response)
@@ -877,7 +888,7 @@ function loadCommentsOrReplies(container, pageName, apiKey, token, isReplies = f
                 const authorName = commentTextContainer.createElment("div",
                 {
                     innerText: comment.authorText.simpleText,
-                    style: "background-color: gray; color: white; font-weight: 500; font-size: 13px; width: max-content; padding: 2px 6px; border-radius: 10px; margin-bottom: 5px;"
+                    style: "background-color: gray; color: white; font-weight: 500; font-size: 13px; user-select: none; width: max-content; padding: 2px 6px; border-radius: 10px; margin-bottom: 5px;"
                 }, true)
             }
             else if (isReplies && xhrComments.responseText.includes("@"+comment.authorText.simpleText))                      // Display the reply author username when it's mentioned by someone
@@ -885,7 +896,7 @@ function loadCommentsOrReplies(container, pageName, apiKey, token, isReplies = f
                 const authorName = commentTextContainer.createElment("div",
                 {
                     innerText: comment.authorText.simpleText,
-                    style: "font-weight: 500; font-size: 13px; margin-bottom: 5px;"
+                    style: "font-weight: 500; font-size: 13px; user-select: none; margin-bottom: 5px;"
                 }, true)
             }
 
@@ -895,7 +906,7 @@ function loadCommentsOrReplies(container, pageName, apiKey, token, isReplies = f
 
                 const showRepliesButton = commentTextContainer.createElment("span",
                 {
-                    style: "display: block; margin-top: 10px; color: #065fd4; font-weight: 500; cursor: pointer; font-size: 14px;",
+                    style: "display: block; margin-top: 10px; color: #065fd4; font-weight: 500; cursor: pointer; font-size: 14px; user-select: none;",
                     innerText: "▾ Show "+ (comment.replyCount > 1 ? "replies" : "reply"),
                     onclick: function()
                     {
