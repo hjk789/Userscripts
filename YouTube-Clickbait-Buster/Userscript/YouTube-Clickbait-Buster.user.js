@@ -1,6 +1,6 @@
-// ==UserScript==
+﻿// ==UserScript==
 // @name            YouTube Clickbait-Buster
-// @version         1.10.9
+// @version         1.10.11
 // @description     Check whether it's worth watching a video before actually clicking on it by peeking it's visual or verbal content, description, comments, viewing the thumbnail in full-size and displaying the full title. Works on both YouTube's desktop and mobile layouts, and is also compatible with dark theme.
 // @author          BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
 // @copyright       2022+, BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
@@ -71,7 +71,7 @@ extendFunctions()
 /* Create the menu buttons */
 {
     const elementName = isMobile ? "button" : "div"
-    const backgroundColor = "var(--yt-spec-brand-background-solid, "+ getComputedStyle(document.documentElement).backgroundColor +")"               // This CSS variable holds the background color of either the light theme or dark theme, whatever is the current
+    var backgroundColor = "var(--yt-spec-brand-background-solid, "+ getComputedStyle(document.documentElement).backgroundColor +")"                 // This CSS variable holds the background color of either the light theme or dark theme, whatever is the current
                                                                                                                                                     // one. But it's only available on desktop, on mobile the color need to be taken from the root element's CSS.
     var viewStoryboardButton = createElement(elementName,
     {
@@ -531,7 +531,7 @@ function addMenuItems()
         if (isMobile)
         {
             const YCBmenu = document.createElement("div")
-            YCBmenu.style = "position: fixed; inset: auto 0 0 0; z-index: 9999; background: white; border-radius: 0px 0px 15px 15px; margin: 8px;"
+            YCBmenu.style = "position: fixed; inset: auto 0 0 0; z-index: 9999; background: "+backgroundColor+"; border-radius: 0px 0px 15px 15px; margin: 8px;"
 
             YCBmenu.appendChild(viewStoryboardButton)
             YCBmenu.appendChild(viewTranscriptButton)
@@ -632,7 +632,7 @@ function createStoryboardImg(num, storyboardContainer, urlSplit, param, mode, vi
 
     const timestampsContainer = document.createElement("div")
     timestampsContainer.style = "position: absolute; display: grid; width: 100%; align-items: self-end;"+
-                                "justify-items: end; pointer-events: none; opacity: 0.4;"
+                                "justify-items: end; pointer-events: none; opacity: 0.4; z-index: 1;"
 
     chunkContainer.appendChild(timestampsContainer)
 
@@ -675,7 +675,7 @@ function createStoryboardImg(num, storyboardContainer, urlSplit, param, mode, vi
                 const timestamp = document.createElement("a")
                 timestamp.href = selectedVideoURL + "&t=" + seconds
                 timestamp.style = "padding: 0px 2px; border-radius: 2px; background-color: #222; color: white;" +
-                                  "font-weight: 500; font-size: 11px; text-decoration: none; pointer-events: auto;"
+                                  "font-weight: 500; font-size: 11px; text-decoration: none; pointer-events: auto; z-index: 2;"
 
                 timestamp.innerText = time
 
