@@ -63,6 +63,7 @@ timeWindowDropdown.onchange = function()
 {
     timeWindow = this.value
     duplicateMediaSamples.length = 0
+    sourceNames = subs.concat(users)
     
     container.innerHTML = ""
     container.appendChild(timeWindowContainer)
@@ -117,7 +118,8 @@ if (/\/(r|user)\//.test(location.pathname))
 }
 
 
-const sourceNames = subs.concat(users)
+let sourceNames = subs.concat(users)
+const pageSize = sourceNames.length == 1 ? 10 : 3
 
 loadPosts()
 
@@ -126,10 +128,10 @@ loadPosts()
 async function loadPosts()
 {
     for (let i=0; i < subs.length; i++)
-        responsesPerSource[subs[i]] = { type: "sub", response: await fetchSubredditPostsPromise("subreddits/"+subs[i]) }
+        responsesPerSource[subs[i]] = { type: "subreddit:", response: await fetchSubredditPostsPromise("subreddit:"+subs[i]) }
     
     for (let i=0; i < users.length; i++)
-        responsesPerSource[users[i]] = { type: "user", response: await fetchSubredditPostsPromise("user/"+users[i]+"/posts") }
+        responsesPerSource[users[i]] = { type: "author:", response: await fetchSubredditPostsPromise("author:"+users[i]) }
 
     processPosts()
 }
@@ -142,15 +144,8 @@ function fetchSubredditPostsPromise(sourceUrlString, after)
 function fetchSubredditPosts(sourceUrlString, after, resolve)
 {
     const xhr = new XMLHttpRequest()
-    xhr.open("GET", "https://gateway.reddit.com/desktopapi/v1/"+sourceUrlString+"?limit=3&sort=top&t="+timeWindow+"&allow_over18="+(+includeNSFW)+"&after="+after)
-    xhr.onload = function()
-    {
-        const response = JSON.parse(xhr.responseText)
-
-        response.postIds = response.postIds.filter((a)=> !a.includes("="))
-
-        resolve(response)
-    }
+    xhr.open("GET", "/search.json?q="+(!includeNSFW ? "nsfw:no+" : "")+sourceUrlString+"&limit="+pageSize+"&sort=top&t="+timeWindow+"&after="+after)
+    xhr.onload = ()=> resolve(JSON.parse(xhr.responseText.replaceAll("&amp;", "&")))
     xhr.onerror = ()=> setTimeout(()=> fetchSubredditPosts(sourceUrlString, after, resolve), 5000)
 
     xhr.send()
@@ -159,212 +154,241 @@ function fetchSubredditPosts(sourceUrlString, after, resolve)
 function processPosts()
 {
     const style = "max-width: calc(100% - 6px); max-height: min(92vh,720px); object-fit: contain; inset: 0; margin: 15px auto; border: 3px lightgray solid; border-radius: 25px; display: block;"
+    let postPromises = []
 
-    for (let i=0; i < 3; i++)
+    for (let i=0; i < pageSize; i++)
     {
         for (let j=0; j < sourceNames.length; j++)
         {
-            const response = responsesPerSource[sourceNames[j]].response
-
-            const post = response.posts[response.postIds[i]]
-
-            if (!post || post.media && (!post.media.type || post.media.type == "text" || post.media.provider == "YouTube") || !post.media && !post.source)
-                continue
-
-            if (!post.media)
+            postPromises.push(new Promise((resolve)=>
             {
-                const imageExtensions = ["jpg", "png", "gif"]
-                const videoExtensions = ["gifv", "mp4"]
+                const response = responsesPerSource[sourceNames[j]].response
+                let post = response.data.children[i]?.data
+                let crosspost
 
-                const sourceUrlSplit = post.source.url.split(".")
-                const sourceExtension = sourceUrlSplit[sourceUrlSplit.length-1]
-
-                post.source.url = post.source.url.replace("https://imgur", "https://i.imgur")
-
-                const xhr = new XMLHttpRequest()
-                xhr.open('GET', post.source.url)
-                xhr.onload = function()
+                if (post && post.crosspost_parent_list)
                 {
-                    const hash = stringToHash(this.response)
-                    
-                    if (duplicateMediaSamples.includes(hash))
-                        return
-                    
-                    duplicateMediaSamples.push(hash)
-                    
-                    if (imageExtensions.includes(sourceExtension))
+                    crosspost = post
+                    post = post.crosspost_parent_list[0]
+                }
+
+                if (!post || post.is_self && !post.preview && !post.media || post.media && ["twitter.com", "youtube.com"].includes(post.media.type))
+                    return resolve()
+
+                if (post.media?.reddit_video || post.preview?.reddit_video_preview || post.preview?.images[0].variants.mp4)
+                {
+                    const videoRoot = post.preview.reddit_video_preview || post.media?.reddit_video
+                    let videoUrl              
+
+                    if (videoRoot)
+                        videoUrl = videoRoot.height > maxVideoQuality ? videoRoot.scrubber_media_url.replace("_96.", "_"+maxVideoQuality+".") : videoRoot.fallback_url
+                    else
+                        videoUrl = post.preview.images[0].variants.mp4.source.url
+
+                    const xhr = new XMLHttpRequest()
+                    xhr.open('GET', videoUrl)
+                    xhr.onload = function()
                     {
-                        const img = document.createElement("img")
-                        img.src = post.source.url
-                        img.style = style
-                        img.onload = function() { checkAndResize(this) }
-                        container.appendChild(img)
-                    }
-                    else if (videoExtensions.includes(sourceExtension))
-                    {
+                        const hash = stringToHash(this.response)
+
+                        if (duplicateMediaSamples.includes(hash))
+                            return resolve()
+
+                        duplicateMediaSamples.push(hash)
+
                         const video = document.createElement("video")
-                        video.src = post.source.url.replace("gifv", "mp4")
+                        video.src = videoUrl
                         video.style = style
                         video.controls = true
                         video.onloadeddata = function() { checkAndResize(this, true) }
                         container.appendChild(video)
 
-                        onViewObserver.observe(video)
-                    }
-                    
-                    createPostMetadata(post, container)
-                }
-                xhr.send()
-            }
-            else if (post.media.type.includes("video") || post.media.type == "embed" || post.media.type == "image" && post.media.videoPreview)
-            {
-                const isVideo = post.media.type == "video"
-                const videoRoot = isVideo ? post.media : post.media.videoPreview
-                let videoUrl
-
-                if (!videoRoot)
-                    videoUrl = post.media.content
-                else
-                    videoUrl = videoRoot.scrubberThumbSource.replace("_96.", (videoRoot.height > maxVideoQuality ? "_"+ maxVideoQuality +"." : "_"+videoRoot.height+"."))
-                
-                let audio
-                const video = document.createElement("video")
-                video.src = videoUrl
-                video.style = style
-                video.controls = true
-                video.onerror = function()
-                {
-                    video.onerror = function()
-                    {
-                        video.onerror = function()
+                        if (post.is_video)
                         {
-                            video.onerror = function() { this.remove() }
+                            const audio = document.createElement("audio")
+                            audio.src = videoRoot.scrubber_media_url.replace("_96.", "_audio.")
+                            container.appendChild(audio)
 
-                            this.src = this.src.replace(/_\d+\./, "_240.")
+                            video.onplay = ()=> { audio.play(); audio.currentTime = video.currentTime }
+                            video.onpause = ()=> audio.pause()
                         }
 
-                        this.src = this.src.replace(/_\d+\./, "_360.")
-                    }
-
-                    this.src = this.src.replace(/_\d+\./, "_480.")
-                }
-                video.onloadeddata = function() 
-                { 
-                    checkAndResize(this, true)
-                    
-                    if (isVideo)
-                    {
-                        audio = document.createElement("audio")
-                        audio.src = post.media.scrubberThumbSource.replace("_96.", "_audio.")
-                        container.appendChild(audio)
-
-                        video.onplay = ()=> { audio.play(); audio.currentTime = video.currentTime }
-                        video.onpause = ()=> audio.pause()
-                    }
-
-                    const xhr = new XMLHttpRequest()
-                    xhr.open('GET', this.src)
-                    xhr.onload = function()
-                    {
-                        const hash = stringToHash(this.response)
-
-                        if (duplicateMediaSamples.includes(hash))
-                        {
-                            video.remove()
-                            audio.remove()
-                            return
-                        }
-
-                        duplicateMediaSamples.push(hash)
-                        
-                        container.appendChild(video)
-
-                        createPostMetadata(post, container)
-                        
                         onViewObserver.observe(video)
+
+                        createPostMetadata(post, crosspost, container)
+
+                        resolve()
                     }
                     xhr.send()
                 }
-            }
-            else if (post.media.type == "image")
-            {
-                let mediaUrl = post.media.content.startsWith("http") ? post.media.content : post.preview.url
-
-                if (post.media.height > maxImageHeight)
+                else if (/\.(jpg|png)/.test(post.url) || post.domain == "imgur.com") //post.domain == "i.redd.it" ||
                 {
-                    for (let k=0; k < post.media.resolutions.length; k++)
+                    if (post.preview)
                     {
-                        if (post.media.resolutions[k].height > maxImageHeight)
-                        {
-                            mediaUrl = post.media.resolutions[k].url
-                            break
-                        }
-                    }
-                }
+                        const image = post.preview.images[0]
+                        let mediaUrl = image.source.url
 
-                const xhr = new XMLHttpRequest()
-                xhr.open('GET', mediaUrl)
-                xhr.onload = function()
-                {
-                    const hash = stringToHash(this.response)
-                    
-                    if (duplicateMediaSamples.includes(hash))
-                        return
-                    
-                    duplicateMediaSamples.push(hash)
-                    
-                    const img = document.createElement("img")
-                    img.src = mediaUrl
-                    img.style = style
-                    img.onload = function() { checkAndResize(this) }
-                    container.appendChild(img)
-                    
-                    createPostMetadata(post, container)
-                }
-                xhr.send()
-            }
-            else if (post.media.type == "gallery")
-            {
-                Object.getOwnPropertyNames(post.media.mediaMetadata).forEach((p)=>
-                {
-                    let mediaUrl = post.media.mediaMetadata[p].s.u
-
-                    if (post.media.mediaMetadata[p].s.y > maxImageHeight)
-                    {
-                        for (let k=0; k < post.media.mediaMetadata[p].p.length; k++)
+                        if (image.source.height > maxImageHeight)
                         {
-                            if (post.media.mediaMetadata[p].p[k].y > maxImageHeight)
+                            for (let k=0; k < image.resolutions.length; k++)
                             {
-                                mediaUrl = post.media.mediaMetadata[p].p[k].u
-                                break
+                                if (image.resolutions[k].height > maxImageHeight)
+                                {
+                                    mediaUrl = image.resolutions[k].url
+                                    break
+                                }
                             }
                         }
-                    }
 
-                    const xhr = new XMLHttpRequest()
-                    xhr.open('GET', mediaUrl, false)
-                    xhr.onload = function()
+                        const xhr = new XMLHttpRequest()
+                        xhr.open('GET', mediaUrl)
+                        xhr.onload = function()
+                        {
+                            const hash = stringToHash(this.response)
+
+                            if (duplicateMediaSamples.includes(hash))
+                                return resolve()
+
+                            duplicateMediaSamples.push(hash)
+
+                            const img = document.createElement("img")
+                            img.src = mediaUrl
+                            img.style = style
+                            img.onload = function() { checkAndResize(this) }
+                            container.appendChild(img)
+
+                            createPostMetadata(post, crosspost, container)
+
+                            resolve()
+                        }
+                        xhr.send()
+                    }
+                    else
                     {
-                        const hash = stringToHash(this.response)
+                        const imageExtensions = ["jpg", "png", "gif"]
+                        const videoExtensions = ["gifv", "mp4"]
 
-                        if (duplicateMediaSamples.includes(hash))
-                            return
+                        const sourceUrlSplit = post.url.split(".")
+                        const sourceExtension = sourceUrlSplit[sourceUrlSplit.length-1]
 
-                        duplicateMediaSamples.push(hash)
+                        post.url = post.url.replace("https://imgur", "https://i.imgur")
 
-                        const img = document.createElement("img")
-                        img.src = mediaUrl
-                        img.style = style
-                        img.onload = function() { checkAndResize(this) }
-                        container.appendChild(img)
+                        const xhr = new XMLHttpRequest()
+                        xhr.open('GET', post.url)
+                        xhr.onload = function()
+                        {
+                            const hash = stringToHash(this.response)
+
+                            if (duplicateMediaSamples.includes(hash))
+                                return resolve()
+
+                            duplicateMediaSamples.push(hash)
+
+                            if (imageExtensions.includes(sourceExtension))
+                            {
+                                const img = document.createElement("img")
+                                img.src = post.url
+                                img.style = style
+                                img.onload = function() { checkAndResize(this) }
+                                container.appendChild(img)
+                            }
+                            else if (videoExtensions.includes(sourceExtension))
+                            {
+                                const video = document.createElement("video")
+                                video.src = post.url.replace("gifv", "mp4")
+                                video.style = style
+                                video.controls = true
+                                video.onloadeddata = function() { checkAndResize(this, true) }
+                                container.appendChild(video)
+
+                                onViewObserver.observe(video)
+                            }
+
+                            createPostMetadata(post, crosspost, container)
+
+                            resolve()
+                        }
+                        xhr.send()
                     }
-                    xhr.send()
-                })
-                
-                createPostMetadata(post, container)
-            }
+                }
+                else if (post.is_gallery || post.url.includes("/gallery/"))
+                {
+                    const mediaUrls = []
+
+                    Object.getOwnPropertyNames(post.media_metadata).forEach((p)=>
+                    {
+                        const mediaMetadata = post.media_metadata[p]
+                        let mediaUrl = mediaMetadata.s.u
+
+                        if (mediaMetadata.s.y > maxImageHeight)
+                        {
+                            for (let k=0; k < mediaMetadata.p.length; k++)
+                            {
+                                if (mediaMetadata.p[k].y > maxImageHeight)
+                                {
+                                    mediaUrl = mediaMetadata.p[k].u
+                                    break
+                                }
+                            }
+                        }
+
+                        mediaUrls.push(mediaUrl)
+                    })
+
+                    const imagesPromises = []
+
+                    for (let k=0; k < mediaUrls.length; k++)
+                    {
+                        imagesPromises.push(new Promise((resolveImg,reject) =>
+                        {
+                            const xhr = new XMLHttpRequest()
+                            xhr.open('GET', mediaUrls[k])
+                            xhr.onload = function()
+                            {
+                                const hash = stringToHash(this.response)
+
+                                if (duplicateMediaSamples.includes(hash))
+                                    return reject()
+
+                                duplicateMediaSamples.push(hash)
+
+                                resolveImg()
+                            }
+                            xhr.send()
+                        }))
+                    }
+
+                    Promise.all(imagesPromises).then(()=>
+                    {
+                        for (let k=0; k < mediaUrls.length; k++)
+                        {
+                            const img = document.createElement("img")
+                            img.src = mediaUrls[k]
+                            img.style = style
+                            img.onload = function() { checkAndResize(this) }
+                            container.appendChild(img)
+                        }
+
+                        createPostMetadata(post, crosspost, container)
+
+                        resolve()
+                    })
+                }
+                else{ 
+                    console.log(post)
+                    resolve()
+                }
+
+            }))
         }
     }
+
+    /*Promise.all(postPromises).then(()=>
+    {
+        if (container.children.length < 13)
+        { console.log(container.children); alert(container.children.length);}
+    })*/
+
 }
 
 function checkAndResize(element, isVideo)
@@ -389,7 +413,7 @@ async function loadNextPage()
     {
         const response = responsesPerSource[sourceNames[i]]
 
-        if (!response.response.token)
+        if (!response.response.data.after)
         {
             delete responsesPerSource[sourceNames[i]]
             sourceNames.splice(i, 1)
@@ -397,31 +421,35 @@ async function loadNextPage()
             continue
         }
 
-        response.response = await fetchSubredditPostsPromise(response.type == "sub" ? "subreddits/"+sourceNames[i] : "user/"+sourceNames[i]+"/posts", response.response.token)
+        response.response = await fetchSubredditPostsPromise(response.type + sourceNames[i], response.response.data.after)
     }
 
-    processPosts()
+    if (sourceNames.length)
+        processPosts()
 
     loading = false
 }
 
-function createPostMetadata(post, container)
+function createPostMetadata(post, crosspost, container)
 {
+    if (crosspost)
+        post = crosspost
+    
     const subname = document.createElement("a")
     subname.style = "margin-top: -10px; margin-right: 50px; display: ruby-text;"
-    subname.innerText = "r/"+post.permalink.split("/r/")[1].split("/")[0]
+    subname.innerText = post.subreddit_name_prefixed
     subname.href = "/./"+subname.innerText
     container.appendChild(subname)  
 
     const username = document.createElement("a")
     username.style = "margin-top: -10px; margin-right: 50px; display: ruby-text;"
     username.innerText = "u/"+post.author
-    username.href = username.innerText
+    username.href = "/"+username.innerText
     container.appendChild(username)
 
     const commentCount = document.createElement("a")
     commentCount.style = "margin-top: -10px; display: ruby-text;"
-    commentCount.innerText = post.numComments +" comments"
+    commentCount.innerText = post.num_comments +" comments"
     commentCount.href = post.permalink
     container.appendChild(commentCount)
 }
