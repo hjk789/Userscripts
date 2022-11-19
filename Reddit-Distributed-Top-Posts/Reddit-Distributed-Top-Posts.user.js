@@ -54,7 +54,7 @@ container.onscroll = async function()
 const timeFrames = ["hour", "day", "week", "month", "year", "alltime"]
 
 const timeWindowContainer = document.createElement("div")
-timeWindowContainer.style = "position: sticky; top: 0px; background: white; padding: 4px;"
+timeWindowContainer.style = "position: sticky; top: 25px; background: white; padding: 3px;"
 
 const label = document.createElement("span")
 label.innerText = "Top posts since a "
