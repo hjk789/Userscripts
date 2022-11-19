@@ -7,7 +7,7 @@
 // @homepage        https://github.com/hjk789/Userscripts/tree/master/Reddit-Distributed-Top-Posts
 // @license         https://github.com/hjk789/Userscripts/tree/master/Reddit-Distributed-Top-Posts#license
 // @match           https://*.reddit.com/
-// @include         /https://\w+\.reddit\.com/(r|user)/\w+/?$/
+// @include         /https://\w+\.reddit\.com/(r|user)/[-\w]+/?$/
 // @grant           none
 // ==/UserScript==
 
@@ -19,7 +19,7 @@ let subs = ["memes", "gifs", "aww"]         // The list of subreddits to gather 
 
 let users = []                              // Same as above, but for user pages (the ones at reddit.com/user/<username>).
 
-let timeWindow = "day"                      // The time frame to get the top posts from. Accepted values are "hour", "day", "week", "month", "year" and "alltime".
+let timeWindow = "day"                      // The default time frame to get the top posts from. Accepted values are "hour", "day", "week", "month", "year" and "alltime".
 
 const maxVideoQuality = 720                 // Reddit provides multiple resolutions for the same video. The script will load the videos in
                                             // the quality you specified (if available). Accepted qualities are 240, 360, 480, 720 and 1080.
@@ -27,7 +27,9 @@ const maxVideoQuality = 720                 // Reddit provides multiple resoluti
 const maxImageHeight = 1000                 // Reddit provides multiple resolutions for the same image. You can specify
                                             // any size and the script will load the image in the closest size available.
 
-const includeNSFW = false                   // When false, posts set as NSFW are filtered from the list and won't be included. Set to true to disable the filtering.
+const filterNSFW = true                     // When true, posts set as NSFW are filtered from the list and won't be included. Set to false to disable the filtering.
+
+const loopVideos = true                     // Whether videos should replay after reaching the end.
 
 //********************************
 
@@ -41,7 +43,7 @@ const container = document.createElement("div")
 container.style = "position: fixed; z-index: 999; inset: 0px; margin: auto; height: 100vh; width: min(900px,100vw); overflow-y: scroll; background: white; text-align: center;"
 container.onscroll = async function()
 {
-    if (!loading && this.scrollTop > this.scrollHeight - window.innerHeight * 4)
+    if (!loading && this.scrollTop > this.scrollHeight - window.innerHeight * 3)
     {
         loading = true
 
@@ -127,24 +129,48 @@ loadPosts()
 
 async function loadPosts()
 {
+    let prefixSub, prefixUser
+
+    if (filterNSFW)
+        prefixSub = "subreddit:", prefixUser = "author:"
+    else
+        prefixSub = "/r/", prefixUser = "/u/"
+
     for (let i=0; i < subs.length; i++)
-        responsesPerSource[subs[i]] = { type: "subreddit:", response: await fetchSubredditPostsPromise("subreddit:"+subs[i]) }
+        responsesPerSource[subs[i]] = { type: prefixSub, response: await fetchSubredditPostsPromise(prefixSub+subs[i]) }
     
     for (let i=0; i < users.length; i++)
-        responsesPerSource[users[i]] = { type: "author:", response: await fetchSubredditPostsPromise("author:"+users[i]) }
+        responsesPerSource[users[i]] = { type: prefixUser, response: await fetchSubredditPostsPromise(prefixUser+users[i]) }
 
     processPosts()
 }
 
 function fetchSubredditPostsPromise(sourceUrlString, after)
 {
-    return new Promise(resolve => fetchSubredditPosts(sourceUrlString, after, resolve))
+    return new_Promise(resolve => fetchSubredditPosts(sourceUrlString, after, resolve))
 }
 
 function fetchSubredditPosts(sourceUrlString, after, resolve)
 {
+    let requestUrl
+    const params = "limit="+pageSize+"&sort=top&t="+timeWindow+"&after="+after
+
+    if (filterNSFW)
+        requestUrl = "/search.json?q=nsfw:no+"+sourceUrlString+"&"+params
+    else
+    {
+        requestUrl = sourceUrlString
+
+        if (/\br\b|subreddit:/.test(sourceUrlString))
+            requestUrl += "/top/"
+        else
+            requestUrl += "/submitted/"
+
+        requestUrl += ".json?" + params.replace("time", "")
+    }
+
     const xhr = new XMLHttpRequest()
-    xhr.open("GET", "/search.json?q="+(!includeNSFW ? "nsfw:no+" : "")+sourceUrlString+"&limit="+pageSize+"&sort=top&t="+timeWindow+"&after="+after)
+    xhr.open("GET", requestUrl)
     xhr.onload = ()=> resolve(JSON.parse(xhr.responseText.replaceAll("&amp;", "&")))
     xhr.onerror = ()=> setTimeout(()=> fetchSubredditPosts(sourceUrlString, after, resolve), 5000)
 
@@ -160,7 +186,7 @@ function processPosts()
     {
         for (let j=0; j < sourceNames.length; j++)
         {
-            postPromises.push(new Promise((resolve)=>
+            postPromises.push(new_Promise((resolve)=>
             {
                 const response = responsesPerSource[sourceNames[j]].response
                 let post = response.data.children[i]?.data
@@ -175,7 +201,7 @@ function processPosts()
                 if (!post || post.is_self && !post.preview && !post.media || post.media && ["twitter.com", "youtube.com"].includes(post.media.type))
                     return resolve()
 
-                if (post.media?.reddit_video || post.preview?.reddit_video_preview || post.preview?.images[0].variants.mp4)
+                if (post.media?.reddit_video || post.preview?.reddit_video_preview || post.preview?.images[0].variants.mp4 || post.url.includes("gfycat.com") && post.media?.oembed || post.url.includes(".gifv"))
                 {
                     const videoRoot = post.preview.reddit_video_preview || post.media?.reddit_video
                     let videoUrl              
@@ -183,7 +209,10 @@ function processPosts()
                     if (videoRoot)
                         videoUrl = videoRoot.height > maxVideoQuality ? videoRoot.scrubber_media_url.replace("_96.", "_"+maxVideoQuality+".") : videoRoot.fallback_url
                     else
-                        videoUrl = post.preview.images[0].variants.mp4.source.url
+                        videoUrl = post.preview?.images[0].variants.mp4?.source.url || post.media?.oembed.thumbnail_url.replace("size_restricted.gif", "mobile.mp4") || post.url.includes(".gifv") && post.url.replace(".gifv", ".mp4")
+
+                    if (!videoUrl)
+                        return resolve()
 
                     const xhr = new XMLHttpRequest()
                     xhr.open('GET', videoUrl)
@@ -200,6 +229,7 @@ function processPosts()
                         video.src = videoUrl
                         video.style = style
                         video.controls = true
+                        video.loop = loopVideos
                         video.onloadeddata = function() { checkAndResize(this, true) }
                         container.appendChild(video)
 
@@ -221,7 +251,7 @@ function processPosts()
                     }
                     xhr.send()
                 }
-                else if (/\.(jpg|png)/.test(post.url) || post.domain == "imgur.com") //post.domain == "i.redd.it" ||
+                else if (post.url && /\.(jpe?g|png)/.test(post.url) || post.domain == "imgur.com" || post.post_hint == "rich:video" || post.url.includes("gfycat.com") && post.preview)
                 {
                     if (post.preview)
                     {
@@ -254,7 +284,19 @@ function processPosts()
                             const img = document.createElement("img")
                             img.src = mediaUrl
                             img.style = style
-                            img.onload = function() { checkAndResize(this) }
+                            img.onload = function()
+                            {
+                                if (this.naturalHeight > 60)
+                                    checkAndResize(this)
+                                else
+                                {
+                                    while (this.nextSibling.tagname == "A")
+                                        this.nextSibling.remove()
+
+                                    this.remove()
+                                }
+                            }
+
                             container.appendChild(img)
 
                             createPostMetadata(post, crosspost, container)
@@ -298,6 +340,7 @@ function processPosts()
                                 video.src = post.url.replace("gifv", "mp4")
                                 video.style = style
                                 video.controls = true
+                                video.loop = loopVideos
                                 video.onloadeddata = function() { checkAndResize(this, true) }
                                 container.appendChild(video)
 
@@ -339,7 +382,7 @@ function processPosts()
 
                     for (let k=0; k < mediaUrls.length; k++)
                     {
-                        imagesPromises.push(new Promise((resolveImg,reject) =>
+                        imagesPromises.push(new_Promise((resolveImg,reject) =>
                         {
                             const xhr = new XMLHttpRequest()
                             xhr.open('GET', mediaUrls[k])
@@ -358,7 +401,7 @@ function processPosts()
                         }))
                     }
 
-                    Promise.all(imagesPromises).then(()=>
+                    Promise_all(imagesPromises).then(()=>
                     {
                         for (let k=0; k < mediaUrls.length; k++)
                         {
@@ -382,13 +425,6 @@ function processPosts()
             }))
         }
     }
-
-    /*Promise.all(postPromises).then(()=>
-    {
-        if (container.children.length < 13)
-        { console.log(container.children); alert(container.children.length);}
-    })*/
-
 }
 
 function checkAndResize(element, isVideo)
@@ -435,11 +471,14 @@ function createPostMetadata(post, crosspost, container)
     if (crosspost)
         post = crosspost
     
-    const subname = document.createElement("a")
-    subname.style = "margin-top: -10px; margin-right: 50px; display: ruby-text;"
-    subname.innerText = post.subreddit_name_prefixed
-    subname.href = "/./"+subname.innerText
-    container.appendChild(subname)  
+    if (post.subreddit_name_prefixed != "u/"+post.author)
+    {
+        const subname = document.createElement("a")
+        subname.style = "margin-top: -10px; margin-right: 50px; display: ruby-text;"
+        subname.innerText = post.subreddit_name_prefixed
+        subname.href = "/./"+subname.innerText
+        container.appendChild(subname)
+    }
 
     const username = document.createElement("a")
     username.style = "margin-top: -10px; margin-right: 50px; display: ruby-text;"
@@ -466,4 +505,14 @@ function stringToHash(string)
     }
 
     return new Uint32Array([hash])[0].toString(36)
+}
+
+function new_Promise(promiseFunction)
+{
+    return new Promise(promiseFunction).catch((e)=> console.log(e))
+}
+
+function Promise_all(promises)
+{
+    return Promise.all(promises).catch((e)=> console.log(e))
 }
