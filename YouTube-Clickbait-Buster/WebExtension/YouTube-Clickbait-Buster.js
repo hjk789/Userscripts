@@ -557,7 +557,8 @@ function addMenuItems()
                 menu.click()              // The recommendation menu doesn't exist in the HTML before it's clicked for the first time. This forces it to be created and dismisses it immediately.
             }
 
-            const optionsParent = document.querySelector("tp-yt-paper-listbox#items")
+            const menuParent = document.querySelector("ytd-menu-popup-renderer")
+            const optionsParent = menuParent.querySelector("tp-yt-paper-listbox#items").parentElement
             optionsParent.style = "max-height: max-content !important; max-width: max-content !important; height: max-content !important; width: max-content !important;"                // Change the max width and height so that the new items fit in the menu.
 
             const waitForMenuItem = setInterval(function()

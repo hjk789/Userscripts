@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name            YouTube Clickbait-Buster
-// @version         1.10.13
+// @version         1.10.14
 // @description     Check whether it's worth watching a video before actually clicking on it by peeking it's visual or verbal content, description, comments, viewing the thumbnail in full-size and displaying the full title. Works on both YouTube's desktop and mobile layouts, and is also compatible with dark theme.
 // @author          BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
 // @copyright       2022+, BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
@@ -515,8 +515,8 @@ function addMenuItems()
             if (isYRRHInstalled)
                 widthPx = "260px"
 
-            const menu = document.getElementById("viewStoryboardButton").parentElement.parentElement                                                                                                  // YouTube resets the menu size everytime it's opened,
-            menu.style = "max-height: max-content !important; max-width: max(100%, "+widthPx+") !important; height: max-content !important; width: max(100%, "+widthPx+") !important;"                // so the script needs to force max size right after.
+            const menu = document.getElementById("viewStoryboardButton").parentElement.parentElement                                                                                               // YouTube resets the menu size everytime it's opened,
+            menu.style = "max-height: max-content !important; max-width: max(100%, "+widthPx+") !important; height: max-content !important; width: max(100%, "+widthPx+") !important;"             // so the script needs to force max size right after.
 
             const bottomValue = menu.firstElementChild.getBoundingClientRect().bottom
             const menuContainer = menu.parentElement.parentElement.style
@@ -550,8 +550,9 @@ function addMenuItems()
                 menu.click()              // The recommendation menu doesn't exist in the HTML before it's clicked for the first time. This forces it to be created and dismisses it immediately.
             }
 
-            const optionsParent = document.querySelector("tp-yt-paper-listbox#items")
-            optionsParent.style = "max-height: max-content !important; max-width: max-content !important; height: max-content !important; width: max-content !important;"                // Change the max width and height so that the new items fit in the menu.
+            const menuParent = document.querySelector("ytd-menu-popup-renderer")
+            const optionsParent = menuParent.querySelector("tp-yt-paper-listbox#items").parentElement
+            optionsParent.style = "max-height: max-content !important; max-width: max-content !important; height: max-content !important; width: max-content !important;"                 // Change the max width and height so that the new items fit in the menu.
 
             const waitForMenuItem = setInterval(function()
             {
