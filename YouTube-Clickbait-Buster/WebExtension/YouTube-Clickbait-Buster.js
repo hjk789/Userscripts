@@ -64,7 +64,7 @@ extendFunctions()
             xhr.open('GET', selectedVideoURL)
             xhr.onload = function()
             {
-                const fullStoryboardURL = xhr.responseText.match(/"playerStoryboardSpecRenderer":.+?"(https.+?)"}/)
+                const fullStoryboardURL = xhr.responseText.match(/"playerStoryboardSpecRenderer":.+?"(https.+?)",/)
 
                 if (!fullStoryboardURL || fullStoryboardURL[1].includes("googleadservices"))                // It can happen sometimes that the storyboard provided is of the ad, instead of the video itself.
                 {                                                                                           // But this seems to only happen on videos that don't have a storyboard available anyway.

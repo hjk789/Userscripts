@@ -26,8 +26,8 @@ for (let i=0; i < collapsables.length; i++)
             {
                 if (elem.id == "open-website")
                     document.documentElement.style.height = "360px"
-                else
-                    document.documentElement.style.height = "480px"
+                //else
+                    //document.documentElement.style.height = "480px"
             }
         }
     }

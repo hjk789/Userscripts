@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name            YouTube Clickbait-Buster
-// @version         1.10.14
+// @version         1.10.15
 // @description     Check whether it's worth watching a video before actually clicking on it by peeking it's visual or verbal content, description, comments, viewing the thumbnail in full-size and displaying the full title. Works on both YouTube's desktop and mobile layouts, and is also compatible with dark theme.
 // @author          BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
 // @copyright       2022+, BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
@@ -85,7 +85,7 @@ extendFunctions()
             xhr.open('GET', selectedVideoURL)
             xhr.onload = function()
             {
-                const fullStoryboardURL = xhr.responseText.match(/"playerStoryboardSpecRenderer":.+?"(https.+?)"}/)
+                const fullStoryboardURL = xhr.responseText.match(/"playerStoryboardSpecRenderer":.+?"(https.+?)",/)
 
                 if (!fullStoryboardURL || fullStoryboardURL[1].includes("googleadservices"))                // It can happen sometimes that the storyboard provided is of the ad, instead of the video itself.
                 {                                                                                           // But this seems to only happen on videos that don't have a storyboard available anyway.
