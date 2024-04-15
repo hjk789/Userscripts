@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name            YouTube Clickbait-Buster
-// @version         1.10.15
+// @version         1.10.16
 // @description     Check whether it's worth watching a video before actually clicking on it by peeking it's visual or verbal content, description, comments, viewing the thumbnail in full-size and displaying the full title. Works on both YouTube's desktop and mobile layouts, and is also compatible with dark theme.
 // @author          BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
 // @copyright       2022+, BLBC (github.com/hjk789, greasyfork.org/users/679182-hjk789)
@@ -811,7 +811,7 @@ function loadTranscript(url)
 function loadCommentsOrReplies(container, pageName, apiKey, token, isReplies = false)
 {
     const xhrComments = new XMLHttpRequest()
-    xhrComments.open('POST', "https://www.youtube.com/youtubei/v1/"+ pageName +"?prettyPrint=false&key="+ apiKey)
+    xhrComments.open('POST', "https://www.youtube.com/youtubei/v1/"+ pageName +"?prettyPrint=false")//&key="+ apiKey)
     xhrComments.onload = function()
     {
         let response = xhrComments.responseText
@@ -826,12 +826,13 @@ function loadCommentsOrReplies(container, pageName, apiKey, token, isReplies = f
         }
 
         const responseObj = JSON.parse(response)
-        let comments = responseObj.onResponseReceivedEndpoints[isReplies ? 0 : 1]
+        let comments = responseObj.frameworkUpdates?.entityBatchUpdate.mutations || responseObj.onResponseReceivedEndpoints[isReplies ? 0 : 1]
 
         if (!comments)
             return alert("Comments are turned off in this video.")
 
-        comments = comments[isReplies ? "appendContinuationItemsAction" : "reloadContinuationItemsCommand"].continuationItems
+        if (!responseObj.frameworkUpdates)
+            comments = comments[isReplies ? "appendContinuationItemsAction" : "reloadContinuationItemsCommand"].continuationItems
 
         if (!comments)
         {
@@ -845,14 +846,14 @@ function loadCommentsOrReplies(container, pageName, apiKey, token, isReplies = f
         if (!isReplies)
             document.getElementById("commentsContainer").style.visibility = "visible"
 
-
         for (let i=0; i < comments.length; i++)
         {
-            const commentData = comments[i].commentThreadRenderer
+            const commentData = comments[i]?.payload.commentEntityPayload?.properties.content.content || comments[i].commentThreadRenderer
 
             if (!commentData)
             {
-                if (isReplies)
+                continue
+                /*if (isReplies)
                 {
                     if (comments[i].continuationItemRenderer)
                     {
@@ -867,21 +868,28 @@ function loadCommentsOrReplies(container, pageName, apiKey, token, isReplies = f
                 {
                     continuationToken = comments[i].continuationItemRenderer.continuationEndpoint.continuationCommand.token
                     break
-                }
+                }*/
             }
 
-            const comment = isReplies ? comments[i].commentRenderer : commentData.comment.commentRenderer
-            const commentContents = comment.contentText.runs
+            const comment = isReplies ? comments[i].commentRenderer : commentData.comment?.commentRenderer || commentData
 
             let commentText = ""
 
-            for (let j=0; j < commentContents.length; j++)                          // Every line, link, text formatations, and even emojis, of each comment,
-                commentText += commentContents[j].text                              // are all in separated strings. This appends them all in one string.
+            if (responseObj.frameworkUpdates)
+            {
+                const commentContents = comment.contentText?.runs
 
-            const commentTextContainer = document.createElement("div")
-            commentTextContainer.innerHTML = commentText
-            commentTextContainer.style = isReplies ? "border-top: 1px solid lightgray; margin-top: 10px; padding-top: 10px; margin-left: 60px;"
-                                                   : "border-bottom: 1px solid lightgray; margin-bottom: 10px; padding-bottom: 10px;"
+                if (commentContents)
+                    for (let j=0; j < commentContents.length; j++)                          // Every line, link, text formatations, and even emojis, of each comment,
+                        commentText += commentContents[j].text                              // are all in separated strings. This appends them all in one string.
+            }
+
+            const commentTextContainer = container.createElment("div",
+            {
+                innerHTML: commentText || comment,
+                style: isReplies ? "border-top: 1px solid lightgray; margin-top: 10px; padding-top: 10px; margin-left: 60px;"
+                                 : "border-bottom: 1px solid lightgray; margin-bottom: 10px; padding-bottom: 10px;"
+            })
 
             if (comment.authorIsChannelOwner)                                   // Highlight the channel owner's comments.
             {
@@ -891,7 +899,7 @@ function loadCommentsOrReplies(container, pageName, apiKey, token, isReplies = f
                     style: "background-color: gray; color: white; font-weight: 500; font-size: 13px; user-select: none; width: max-content; padding: 2px 6px; border-radius: 10px; margin-bottom: 5px;"
                 }, true)
             }
-            else if (isReplies && xhrComments.responseText.includes("@"+comment.authorText.simpleText))                      // Display the reply author username when it's mentioned by someone
+            /*else if (isReplies && xhrComments.responseText.includes("@"+comment.authorText.simpleText))                      // Display the reply author username when it's mentioned by someone
             {                                                                                                                // else, to make it easier to identify who the reply is directed to.
                 const authorName = commentTextContainer.createElment("div",
                 {
@@ -899,6 +907,7 @@ function loadCommentsOrReplies(container, pageName, apiKey, token, isReplies = f
                     style: "font-weight: 500; font-size: 13px; user-select: none; margin-bottom: 5px;"
                 }, true)
             }
+
 
             if (comment.replyCount)
             {
@@ -926,9 +935,7 @@ function loadCommentsOrReplies(container, pageName, apiKey, token, isReplies = f
                 })
 
                 const repliesContainer = commentTextContainer.createElment("div")
-            }
-
-            container.appendChild(commentTextContainer)
+            }*/
         }
     }
     xhrComments.send('{ "context": { "client": { "clientName": "WEB", "clientVersion": "2.2022021" } }, "continuation": "'+ token +'" }')                // This is the bare minimum to be able to get the comments list.
